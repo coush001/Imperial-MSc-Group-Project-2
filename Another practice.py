@@ -25,7 +25,7 @@ class SPH_main(object):
 
         self.min_x[:] = (0.0, 0.0)
         self.max_x[:] = (1.0, 1.0)
-        self.dx = 0.02
+        self.dx = 0.2
         self.h_fac = 1.3
         self.h = self.dx*self.h_fac
 
