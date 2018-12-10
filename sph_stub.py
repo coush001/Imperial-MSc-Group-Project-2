@@ -147,7 +147,7 @@ class SPH_main(object):
             D += nei.m * np.dot(self.diff_W() * v, e)
         return a, D
 
-    def forward_euler(self, part, t0, t_max):
+    def forward_euler(self, part, t0, t_max, neis=[], smooth_t=10):
         x_all = [part.x]
         v_all = [part.v]
         rho_all = [part.rho]
@@ -160,12 +160,47 @@ class SPH_main(object):
             x = x + self.dt * v
             v = v + self.dt * part.a
             rho = rho + self.dt * part.D
+            if t == t0 + smooth_t * self.dt:
+                rho = self.smooth(part, neis)
             t = t + self.dt
+            if part.boundary:
+                x = 0
+                v = 0
             x_all.append(x)
             v_all.append(v)
             rho_all.append(rho)
             t_all.append(t)
+
         return t, x, v, rho
+
+    def W(self, particle, other_particle):
+        """
+        The smoothing kernel
+        """
+        factor = 10 / (7*np.pi * self.h**2)
+        r = particle.x - other_particle.x
+        dist = np.sqrt(np.sum(r ** 2))
+        q = dist / self.h
+        w = 0
+        if 0 <= q <= 1:
+            w = 1 - 1.5*q**2 + 0.75*q**3
+        if 1 <= q <= 2:
+            w = 0.25 * (2-q)**3
+        return factor * w
+
+    def smooth(self, part, neighbours):
+        """
+        Smoothing density/pressure field
+        :param part: particle
+        :param neighbours: neighbours of particle
+        """
+        num = 0
+        denum = 0
+        for nei in neighbours:
+            w = self.W(part, neighbours)
+            num += w
+            denum += (w / nei.rho)
+        return num / denum
 
     def simulate(self):
         # We are returning a list of particles per time step in a list of lists
@@ -174,22 +209,34 @@ class SPH_main(object):
         for particle in self.particle_list:
             # Get neighbours of particle
             neighbours = self.neighbour_iterate(particle)
-            # Navier stokes equation
+            # Navier-stokes equation
             a, D = self.navier_cont(particle, neighbours)
             # Set the acceleration and derivative of density
             particle.a = a
             particle.D = D
             # Forward euler step in time
-            t_all, x_all, v_all, rho_all = self.forward_euler(particle, self.t0, self.t_max)
+            t_all, x_all, v_all, rho_all = self.forward_euler(particle, self.t0, self.t_max, neis=neighbours)
 
             particles = [None] * len(t_all)
             for i in range(len(t_all)):
                 particle.x = x_all[i]
                 particle.v = v_all[i]
                 particle.rho = rho_all[i]
-                dict[t_all[i]].append(particle)
+                particle.update_P()
+                particle.calc_index()
 
-        return particles_times
+                particles.append(particle)
+            particles_times.append(particles)
+
+        result = np.array(particles_times).T.tolist()
+
+        return result
+
+
+
+
+
+
 
 
 class SPH_particle(object):
@@ -218,14 +265,14 @@ class SPH_particle(object):
     def B(self):
         return (self.main_data.rho0 * self.main_data.c0 ** 2) / self.main_data.gamma
 
-    def calc_P(self):
+    def update_P(self):
         """
         Equation of state
         System is assumed slightly compressible
         """
         rho0 = self.main_data.rho0
         gamma = self.main_data.gamma
-        return self.B() * ((self.rho / rho0) ** gamma - 1)
+        self.P = self.B() * ((self.rho / rho0) ** gamma - 1)
 
 
 """Create a single object of the main SPH type"""
