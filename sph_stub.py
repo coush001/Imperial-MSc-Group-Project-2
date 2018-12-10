@@ -66,23 +66,23 @@ class SPH_main(object):
         for i in np.arange(self.min_x_with_boundary[0], self.max_x_with_boundary[0], self.dx):
             for j in np.arange(self.min_x_with_boundary[1], self.max_x_with_boundary[1], self.dx):
                 if not self.min_x[0] < i < self.max_x[0] and not self.min_x[1] < j < self.max_x[1]:
-                    x = (i, j)
+                    x = np.array(i, j)
                     particle = SPH_particle(self, x)
                     particle.calc_index()
                     particle.boundary = True
                     self.particle_list.append(particle)
 
         # Add interior particles
-        for i in np.arange(self.min_[0], self.max_x_[0], self.dx):  # X
+        for i in np.arange(self.min_x[0], self.max_x[0], self.dx):  # X
             for j in np.arange(self.min_x_with_boundary[1], 2, self.dx):  # Y
-                    x = (i, j)
+                    x = np.array(i, j)
                     particle = SPH_particle(self, x)
                     particle.calc_index()
                     self.particle_list.append(particle)
 
-        for i in np.arange(self.min_[0], 3, self.dx):  # X
+        for i in np.arange(self.min_x[0], 3, self.dx):  # X
             for j in np.arange(2, 5, self.dx):  # Y
-                    x = (i, j)
+                    x = np.array(i, j)
                     particle = SPH_particle(self, x)
                     particle.calc_index()
                     self.particle_list.append(particle)
