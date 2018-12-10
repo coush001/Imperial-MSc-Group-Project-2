@@ -138,4 +138,4 @@ a = domain.output_particle()
 fig = plt.figure(figsize=(7, 7))
 ax1 = plt.subplot(111)
 
-ax1.plot(a[1], a[1], 'b.')
+ax1.plot(a[0], a[1], 'b.')
