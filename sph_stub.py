@@ -31,7 +31,7 @@ class SPH_main(object):
         self.c0 = 20  # m s ^-1
         self.gamma = 7
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(1.0, 1.0), dx=0.02, h_fac=1.3, t0=0.0, t_max=0.3):
+    def set_values(self, min_x=(0.0, 0.0), max_x=(20, 10), dx=0.02, h_fac=1.3, t0=0.0, t_max=0.3):
         """Set simulation parameters."""
 
         self.min_x[:] = min_x
@@ -62,9 +62,20 @@ class SPH_main(object):
 
         x = np.array(xmin)
 
-        while x[0] <= xmax[0]:
+        while x[0] <= xmax[0]:  # Add particles to bottom rectangle
             x[1] = xmin[1]
             while x[1] <= xmax[1]:
+                particle = SPH_particle(self, x)
+                particle.calc_index()
+                self.particle_list.append(particle)
+                x[1] += self.dx
+            x[0] += self.dx
+
+        x = np.array(0, 2+self.dx)  # start from point on left boundary, 2 metres up
+
+        while x[0] <= 3:  # up to 3m in x
+            x[1] = 2  # from 2m in y
+            while x[1] <= 5:  # to 5m in y
                 particle = SPH_particle(self, x)
                 particle.calc_index()
                 self.particle_list.append(particle)
