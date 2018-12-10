@@ -13,6 +13,10 @@ class SPH_main(object):
         self.h_fac = 0.0
         self.dx = 0.0
 
+        self.dt = 0.0
+        self.t0 = 0.0
+        self.t_max = 0.0
+
         self.min_x = np.zeros(2)
         self.max_x = np.zeros(2)
         self.max_list = np.zeros(2, int)
@@ -20,26 +24,37 @@ class SPH_main(object):
         self.particle_list = []
         self.search_grid = np.empty((0, 0), object)
 
-    def set_values(self):
+        # Physical properties
+        self.mu = 0.001  # in Pa s
+        self.rho0 = 1000  # kg / m^3
+        self.g = 9.81  # m^2 s^-2
+        self.c0 = 20  # m s ^-1
+        self.gamma = 7
+
+    def set_values(self, min_x=(0.0, 0.0), max_x=(1.0, 1.0), dx=0.02, h_fac=1.3, t0=0.0, t_max=0.3):
         """Set simulation parameters."""
 
-        self.min_x[:] = (0.0, 0.0)
-        self.max_x[:] = (1.0, 1.0)
-        self.dx = 0.02
-        self.h_fac = 1.3
-        self.h = self.dx*self.h_fac
+        self.min_x[:] = min_x
+        self.max_x[:] = max_x
+        self.dx = dx
+        self.h_fac = h_fac
+        self.h = self.dx * self.h_fac
+
+        self.dt = 0.1 * (self.h / self.c0)
+        self.t0 = t0
+        self.t_max = t_max
 
     def initialise_grid(self):
         """Initalise simulation grid."""
 
         """Increases the minimum and maximum to account for the virtual particle padding that is required at boundaries"""
-        self.min_x -= 2.0*self.h
-        self.max_x += 2.0*self.h
-        
+        self.min_x -= 2.0 * self.h
+        self.max_x += 2.0 * self.h
+
         """Calculates the size of the array required to store the search array"""
-        self.max_list = np.array((self.max_x-self.min_x)/(2.0*self.h)+1,
+        self.max_list = np.array((self.max_x - self.min_x) / (2.0 * self.h) + 1,
                                  int)
-                                 
+
         self.search_grid = np.empty(self.max_list, object)
 
     def place_points(self, xmin, xmax):
@@ -68,22 +83,26 @@ class SPH_main(object):
 
     def neighbour_iterate(self, part):
         """Find all the particles within 2h of the specified particle"""
-        for i in range(max(0, part.list_num[0]-1),
-                       min(part.list_num[0]+2, self.max_list[0])):
-            for j in range(max(0, part.list_num[1]-1),
-                           min(part.list_num[1]+2, self.max_list[1])):
+        # save neighbours (particles j) of particles i
+        neighbours = []
+        for i in range(max(0, part.list_num[0] - 1),
+                       min(part.list_num[0] + 2, self.max_list[0])):
+            for j in range(max(0, part.list_num[1] - 1),
+                           min(part.list_num[1] + 2, self.max_list[1])):
                 for other_part in self.search_grid[i, j]:
                     if part is not other_part:
-                        dn = part.x-other_part.x
-                        dist = np.sqrt(np.sum(dn**2))
-                        if dist < 2.0*self.h:
-                            """This is only for demonstration - Your code will need to do all the particle to particle calculations at this point rather than simply displaying the vector to the neighbour"""
+                        dn = part.x - other_part.x
+                        dist = np.sqrt(np.sum(dn ** 2))
+                        if dist < 2.0 * self.h:
+                            neighbours.append(other_part)
                             print("id:", other_part.id, "dn:", dn)
+        return neighbours
 
     def diff_W(self, part, other_part):
         dn = part.x - other_part.x  # dn is r_ij (vector)
         dist = np.sqrt(np.sum(dn ** 2))  # dist is |r_ij| (scalar)
         q = dist / self.h
+        dw = 0
         if 0 <= q <= 1:
             dw = (10 / (7 * np.pi * self.h ** 2)) * ((-3 * dn)/self.h**2 + (9/4) * (dist * dn) / self.h**3)
         if 1 <= q <= 2:
@@ -98,6 +117,7 @@ class SPH_main(object):
         dist = np.sqrt(np.sum(dn ** 2))  # dist is |r_ij| (scalar)
         e_ij = dn / dist
         q = dist / self.h
+        dw = 0
         if 0 <= q <= 1:
             dw = (10 / (7 * np.pi * self.h ** 2)) * ((-3 * dn)/self.h**2 + (9/4) * (dist * dn) / self.h**3)
         if 1 <= q <= 2:
@@ -106,6 +126,70 @@ class SPH_main(object):
         if 2 < q:
             dw = 0
         return dw * e_ij
+
+    def navier_cont(self, part, neighbours):
+        # Set acceleration to 0 initially for sum
+        a = 0
+        # Set derivative of density to 0 initially for sum
+        D = 0
+        for nei in neighbours:
+            # Calculate distance between 2 points
+            r = part.x - nei.x
+            dist = np.sqrt(np.sum(r ** 2))
+            # Calculate the difference of velocity
+            v = part.v - nei.v
+            # Calculate acceleration of particle
+            a += -(nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * self.grad_W()) + \
+                 self.mu * (nei.m * ((1 / part.rho ** 2) + (nei.P / nei.rho ** 2)) * self.diff_W() * (v / dist)) + self.g
+            # normal
+            e = r / dist
+            # Calculate the derivative of the density
+            D += nei.m * np.dot(self.diff_W() * v, e)
+        return a, D
+
+    def forward_euler(self, part, t0, t_max):
+        x_all = [part.x]
+        v_all = [part.v]
+        rho_all = [part.rho]
+        t_all = [t0]
+        x = part.x
+        v = part.v
+        rho = part.rho
+        t = t0
+        while t < t_max:
+            x = x + self.dt * v
+            v = v + self.dt * part.a
+            rho = rho + self.dt * part.D
+            t = t + self.dt
+            x_all.append(x)
+            v_all.append(v)
+            rho_all.append(rho)
+            t_all.append(t)
+        return t, x, v, rho
+
+    def simulate(self):
+        # We are returning a list of particles per time step in a list of lists
+
+        particles_times = []
+        for particle in self.particle_list:
+            # Get neighbours of particle
+            neighbours = self.neighbour_iterate(particle)
+            # Navier stokes equation
+            a, D = self.navier_cont(particle, neighbours)
+            # Set the acceleration and derivative of density
+            particle.a = a
+            particle.D = D
+            # Forward euler step in time
+            t_all, x_all, v_all, rho_all = self.forward_euler(particle, self.t0, self.t_max)
+
+            particles = [None] * len(t_all)
+            for i in range(len(t_all)):
+                particle.x = x_all[i]
+                particle.v = v_all[i]
+                particle.rho = rho_all[i]
+                dict[t_all[i]].append(particle)
+
+        return particles_times
 
 
 class SPH_particle(object):
@@ -122,13 +206,26 @@ class SPH_particle(object):
         self.D = 0
         self.rho = 0.0
         self.P = 0.0
-        self.m = 0.0
+        self.m = main_data.dx ** 2 * main_data.rho0  # initial mass depends on the initial particle spacing
+        self.boundary = False  # Particle by default is not on the boundary
 
     def calc_index(self):
         """Calculates the 2D integer index for the particle's location in the search grid"""
         # Calculates the bucket coordinates
-        self.list_num = np.array((self.x-self.main_data.min_x) /
-                                 (2.0*self.main_data.h), int)
+        self.list_num = np.array((self.x - self.main_data.min_x) /
+                                 (2.0 * self.main_data.h), int)
+
+    def B(self):
+        return (self.main_data.rho0 * self.main_data.c0 ** 2) / self.main_data.gamma
+
+    def calc_P(self):
+        """
+        Equation of state
+        System is assumed slightly compressible
+        """
+        rho0 = self.main_data.rho0
+        gamma = self.main_data.gamma
+        return self.B() * ((self.rho / rho0) ** gamma - 1)
 
 
 """Create a single object of the main SPH type"""
@@ -136,7 +233,7 @@ domain = SPH_main()
 
 """Calls the function that sets the simulation parameters"""
 domain.set_values()
-"""Initialises the search grid""" 
+"""Initialises the search grid"""
 domain.initialise_grid()
 
 """Places particles in a grid over the entire domain - In your code you will need to place the fluid particles in only the appropriate locations"""
