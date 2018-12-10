@@ -54,7 +54,7 @@ class SPH_main(object):
         self.max_x_with_boundary = self.max_x + 2.0 * self.h
 
         """Calculates the size of the array required to store the search array"""
-        self.max_list = np.array((self.max_x - self.min_x_with_boundary) / (2.0 * self.h) + 1,
+        self.max_list = np.array((self.max_x_with_boundary - self.min_x_with_boundary) / (2.0 * self.h) + 1,
                                  int)
 
         self.search_grid = np.empty(self.max_list, object)
