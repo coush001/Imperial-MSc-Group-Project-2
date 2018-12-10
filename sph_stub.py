@@ -79,6 +79,19 @@ class SPH_main(object):
                             """This is only for demonstration - Your code will need to do all the particle to particle calculations at this point rather than simply displaying the vector to the neighbour"""
                             print("id:", other_part.id, "dn:", dn)
 
+    def grad_W(self, part, other_part):
+        dn = part.x - other_part.x  # dn is r_ij
+        dist = np.sqrt(np.sum(dn ** 2))  # dist is |r_ij|
+        e_ij = dn / dist
+        q = dist / self.h
+        if 0 <= q <= 1:
+            dw = (10 / (7 * np.pi * self.h ** 2)) * ((-3 * dn)/self.h**2 + (9/4) * (dist * dn) / self.h**3)
+        if 1 <= q <= 2:
+            dw = (10 / (7 * np.pi * self.h ** 2)) * ((-1/4) * (3 * dist * dn) / self.h**3 +
+                                                     (3 * dn)/self.h**2 - (3/self.h**3) * (dn / dist))
+        if 2 < q:
+            dw = 0
+        return dw * e_ij
 
 class SPH_particle(object):
     """Object containing all the properties for a single particle"""
