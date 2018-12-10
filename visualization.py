@@ -11,6 +11,7 @@ from itertools import count
 import matplotlib.pyplot as plt
 import numpy as np
 from os import path
+import csv
 
 
 class SPH_main(object):
@@ -135,14 +136,9 @@ domain.allocate_to_grid()
 """This example is only finding the neighbours for a single partle - this will need to be inside the simulation loop and will need to be called for every particle"""
 domain.neighbour_iterate(domain.particle_list[100])
 
-x, y = domain.output_particle()
-fig = plt.figure(figsize=(14, 7))
-ax1 = plt.subplot(111)
-#print(coordinate[0])
-ax1.plot(x, y, 'b.')
-
 #state is the output of main function, which stores the particle state (x, v, a, D, rho, P, m) at each time. 
 #states = [state1, state2, state3, ...]
+
 
 def save_csv(name, x, y):
     """
@@ -160,9 +156,40 @@ def save_csv(name, x, y):
 
     """
     header = ("X, Y")
-    
+
     data = np.hstack((np.reshape(x, (len(x), 1)), np.reshape(y, (len(y), 1))))
     loc = path.join('data', name)
     np.savetxt(loc+".csv", data, delimiter=",", fmt='%s', header=header)
 
+
+x, y = domain.output_particle()
 save_csv("Coordinate", x, y)
+
+
+def load_csv(filename):
+    """
+    Load the state data from csv file
+
+    Parameters
+    ----------
+    filename : the filename of csv data file
+
+    Returns
+    -------
+    Array of the x and y
+    ie. This is just a simple version
+    we can also load other state data after we finish the main function
+    """
+    loc = path.join('data', filename)
+    assert(path.exists(loc))
+    assert(path.isfile(loc))
+    data = np.loadtxt(loc, dtype=float, delimiter=',',
+                      comments='#', skiprows=1)
+    return data[:, 0], data[:, 1]
+
+
+coordinate = 'Coordinate.csv'
+x_load, y_load = load_csv(coordinate)
+fig = plt.figure(figsize=(14, 7))
+ax1 = plt.subplot(111)
+ax1.plot(x_load, y_load, 'b.')
