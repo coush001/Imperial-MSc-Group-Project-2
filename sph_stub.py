@@ -63,6 +63,7 @@ class SPH_main(object):
                 self.search_grid[i, j] = []
 
         for cnt in self.particle_list:
+            # Keep in mind, list_num is bucket coordinates
             self.search_grid[cnt.list_num[0], cnt.list_num[1]].append(cnt)
 
     def neighbour_iterate(self, part):
@@ -98,6 +99,7 @@ class SPH_particle(object):
 
     def calc_index(self):
         """Calculates the 2D integer index for the particle's location in the search grid"""
+        # Calculates the bucket coordinates
         self.list_num = np.array((self.x-self.main_data.min_x) /
                                  (2.0*self.main_data.h), int)
 
