@@ -31,8 +31,8 @@ class SPH_main(object):
         """Set simulation parameters."""
 
         self.min_x[:] = (0.0, 0.0)
-        self.max_x[:] = (1.0, 1.0)
-        self.dx = 0.02
+        self.max_x[:] = (20.0, 10.0)
+        self.dx = 0.2
         self.h_fac = 1.3
         self.h = self.dx*self.h_fac
 
@@ -135,7 +135,7 @@ domain.allocate_to_grid()
 domain.neighbour_iterate(domain.particle_list[100])
 
 a = domain.output_particle()
-fig = plt.figure(figsize=(7, 7))
+fig = plt.figure(figsize=(14, 7))
 ax1 = plt.subplot(111)
 
 ax1.plot(a[0], a[1], 'b.')
