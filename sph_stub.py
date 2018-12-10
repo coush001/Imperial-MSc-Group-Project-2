@@ -19,6 +19,8 @@ class SPH_main(object):
 
         self.min_x = np.zeros(2)
         self.max_x = np.zeros(2)
+        self.min_x_with_boundary = np.zeros(2)
+        self.max_x_with_boundary = np.zeros(2)
         self.max_list = np.zeros(2, int)
 
         self.particle_list = []
@@ -48,11 +50,11 @@ class SPH_main(object):
         """Initalise simulation grid."""
 
         """Increases the minimum and maximum to account for the virtual particle padding that is required at boundaries"""
-        self.min_x -= 2.0 * self.h
-        self.max_x += 2.0 * self.h
+        self.min_x_with_boundary = self.min_x - 2.0 * self.h
+        self.max_x_with_boundary = self.max_x + 2.0 * self.h
 
         """Calculates the size of the array required to store the search array"""
-        self.max_list = np.array((self.max_x - self.min_x) / (2.0 * self.h) + 1,
+        self.max_list = np.array((self.max_x - self.min_x_with_boundary) / (2.0 * self.h) + 1,
                                  int)
 
         self.search_grid = np.empty(self.max_list, object)
@@ -60,27 +62,30 @@ class SPH_main(object):
     def place_points(self, xmin, xmax):
         """Place points in a rectangle with a square spacing of size dx"""
 
-        x = np.array(xmin)
+        # Add boundary particles
+        for i in range(self.min_x_with_boundary[0], self.max_x_with_boundary[0], self.dx):
+            for j in range(self.min_x_with_boundary[1], self.max_x_with_boundary[1], self.dx):
+                if not self.min_x[0] < i < self.max_x[0] and not self.min_x[1] < j < self.max_x[1]:
+                    x = (i, j)
+                    particle = SPH_particle(self, x)
+                    particle.calc_index()
+                    particle.boundary = True
+                    self.particle_list.append(particle)
 
-        while x[0] <= xmax[0]:  # Add particles to bottom rectangle
-            x[1] = xmin[1]
-            while x[1] <= xmax[1]:
-                particle = SPH_particle(self, x)
-                particle.calc_index()
-                self.particle_list.append(particle)
-                x[1] += self.dx
-            x[0] += self.dx
+        # Add interior particles
+        for i in range(self.min_[0], self.max_x_[0], self.dx):  # X
+            for j in range(self.min_x_with_boundary[1], 2, self.dx):  # Y
+                    x = (i, j)
+                    particle = SPH_particle(self, x)
+                    particle.calc_index()
+                    self.particle_list.append(particle)
 
-        x = np.array(0, 2+self.dx)  # start from point on left boundary, 2 metres up
-
-        while x[0] <= 3:  # up to 3m in x
-            x[1] = 2  # from 2m in y
-            while x[1] <= 5:  # to 5m in y
-                particle = SPH_particle(self, x)
-                particle.calc_index()
-                self.particle_list.append(particle)
-                x[1] += self.dx
-            x[0] += self.dx
+        for i in range(self.min_[0], 3, self.dx):  # X
+            for j in range(2, 5, self.dx):  # Y
+                    x = (i, j)
+                    particle = SPH_particle(self, x)
+                    particle.calc_index()
+                    self.particle_list.append(particle)
 
     def allocate_to_grid(self):
         """Allocate all the points to a grid in order to aid neighbour searching"""
