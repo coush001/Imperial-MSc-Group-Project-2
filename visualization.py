@@ -10,6 +10,7 @@ Created on Mon Dec 10 13:20:15 2018
 from itertools import count
 import matplotlib.pyplot as plt
 import numpy as np
+from os import path
 
 
 class SPH_main(object):
@@ -42,18 +43,18 @@ class SPH_main(object):
         """Increases the minimum and maximum to account for the virtual particle padding that is required at boundaries"""
         self.min_x -= 2.0*self.h
         self.max_x += 2.0*self.h
-        
+
         """Calculates the size of the array required to store the search array"""
         self.max_list = np.array((self.max_x-self.min_x)/(2.0*self.h)+1,
                                  int)
-                                 
+
         self.search_grid = np.empty(self.max_list, object)
 
     def place_points(self, xmin, xmax):
         """Place points in a rectangle with a square spacing of size dx"""
 
         x = np.array(xmin)
-
+        
         while x[0] <= xmax[0]:
             x[1] = xmin[1]
             while x[1] <= xmax[1]:
@@ -85,14 +86,14 @@ class SPH_main(object):
                         if dist < 2.0*self.h:
                             """This is only for demonstration - Your code will need to do all the particle to particle calculations at this point rather than simply displaying the vector to the neighbour"""
                             print("id:", other_part.id, "dn:", dn)
-                            
+
     def output_particle(self):
         x_value = []
         y_value = []
         for particle in self.particle_list:
             x_value.append(particle.x[0])
             y_value.append(particle.x[1])
-        return [x_value, y_value]
+        return x_value, y_value
             
 
 class SPH_particle(object):
@@ -134,8 +135,34 @@ domain.allocate_to_grid()
 """This example is only finding the neighbours for a single partle - this will need to be inside the simulation loop and will need to be called for every particle"""
 domain.neighbour_iterate(domain.particle_list[100])
 
-a = domain.output_particle()
+x, y = domain.output_particle()
 fig = plt.figure(figsize=(14, 7))
 ax1 = plt.subplot(111)
+#print(coordinate[0])
+ax1.plot(x, y, 'b.')
 
-ax1.plot(a[0], a[1], 'b.')
+#state is the output of main function, which stores the particle state (x, v, a, D, rho, P, m) at each time. 
+#states = [state1, state2, state3, ...]
+
+def save_csv(name, x, y):
+    """
+    Write out a csv file, delimited with comma (,)
+
+    Parameters
+    ----------
+
+    name: output filename
+    state: state of the particle
+           (coordinate, velocity, acceleration, D, density, pressure, mass
+           ie. now it only contains coordinate)
+    kinetic: kinetic energy loss at a point
+    time: timestamp
+
+    """
+    header = ("X, Y")
+    
+    data = np.hstack((np.reshape(x, (len(x), 1)), np.reshape(y, (len(y), 1))))
+    loc = path.join('data', name)
+    np.savetxt(loc+".csv", data, delimiter=",", fmt='%s', header=header)
+
+save_csv("Coordinate", x, y)
