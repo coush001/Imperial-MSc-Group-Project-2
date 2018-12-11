@@ -230,19 +230,6 @@ class SPH_main(object):
                 bound.append(False)
         return x_value, y_value, bound
 
-#    def output_particle(self):
-#        #x_value_bound = []
-#        #y_value_bound = []
-#        x_value = []
-#        y_value = []
-#        for particle in self.particle_list:
-#            #if particle.boundary==True:
-#                #x_value_bound.append(particle.x[0])
-#                #y_value_bound.append(particle.x[1])
-#            #else:
-#            x_value.append(particle.x[0])
-#            y_value.append(particle.x[1])
-#        return x_value, y_value    # x_value_bound, y_value_bound
 
 
 class SPH_particle(object):
