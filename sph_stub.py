@@ -61,8 +61,8 @@ class SPH_main(object):
 
     def place_points(self, xmin, xmax):
         """Place points in a rectangle with a square spacing of size dx"""
-        inner_xmin = xmin + 2 * self.h
-        inner_xmax = xmax - 2 * self.h
+        inner_xmin = xmin + 2 * self.h  # Inner xmin is point 0,0
+        inner_xmax = xmax - 2 * self.h  # Inner xmax is point 20,10
 
         # Add boundary particles
         for i in np.arange(inner_xmin[0] - 3*self.dx, inner_xmax[0] + 3*self.dx, self.dx):  # Maybe change to 2*dx for 3 boundary points
@@ -75,15 +75,15 @@ class SPH_main(object):
                     self.particle_list.append(particle)
 
         # Add fluid particles
-        for i in np.arange(inner_xmin[0] + self.dx, inner_xmax[0] - self.dx, self.dx):  # X [0+dx : inner_xmax-dx]
-            for j in np.arange(self.min_x_with_boundary[1] + self.dx, 2, self.dx):  # Y [0+dx : 2]
+        for i in np.arange(inner_xmin[0] + self.dx, inner_xmax[0] - self.dx, self.dx):  # X [0+dx : 20-dx]
+            for j in np.arange(inner_xmin[1] + self.dx, inner_xmin[1] + 2, self.dx):  # Y [0+dx : 0+2]
                     x = np.array([i, j])
                     particle = SPH_particle(self, x)
                     particle.calc_index()
                     self.particle_list.append(particle)
 
-        for i in np.arange(inner_xmin[0] + self.dx, 3, self.dx):  # X [0+dx : 3]
-            for j in np.arange(2 + self.dx, 3, self.dx):  # Y [2+dx : 2 + 3]
+        for i in np.arange(inner_xmin[0] + self.dx, inner_xmin[0] + 3, self.dx):  # X [0+dx : 0+3]
+            for j in np.arange(inner_xmin[1] + 2 + self.dx, inner_xmin[1] + 2 + 3, self.dx):  # Y [0+2+dx : 0+2+3]
                     x = np.array([i, j])
                     particle = SPH_particle(self, x)
                     particle.calc_index()
