@@ -171,38 +171,24 @@ class SPH_main(object):
             D += nei.m * np.dot(self.diff_W(part, nei) * v, e)
         return a, D
 
-    def forward_euler(self, part, t0, t_max, neis, smooth_t=10):
-        x_all = [part.x]
-        v_all = [part.v]
-        rho_all = [part.rho]
-        a_all = [part.a]
-        D_all = [part.D]
-        t_all = [t0]
-        x = part.x
-        v = part.v
-        rho = part.rho
-        t = t0
-        while t < t_max:
-            print("in while loop", t)
-            # Allocate grid points
-            self.allocate_to_grid()
-            print("in while loop, allocate grid")
+    def forward_euler(self, particles, t, dt, smooth=False):
+        updated_particles = []
+        for part in particles:
+            # Get neighbours of each particle
+            neis = self.neighbour_iterate(part)
+
+            # Forward time step update
+            x = part.x + self.dt * part.v
+            v = part.v + self.dt * part.a
+            rho = part.rho + self.dt * part.D
+
+            # Smooth after some time steps
+            if smooth:
+                rho = self.smooth(part, neis)
+            t = t + dt
 
             # Calculate a and D at time t
             a, D = self.navier_cont(part, neis)
-            part.set_v(a)
-            part.set_D(D)
-            print("in while loop, navier cont")
-
-            # Forward time step update
-            x = x + self.dt * v
-            v = v + self.dt * a
-            rho = rho + self.dt * D
-
-            # Smooth after some time steps
-            if t == t0 + smooth_t * self.dt:
-                rho = self.smooth(part, neis)
-            t = t + self.dt
 
             # If it is a boundary particle, then
             if part.boundary:
@@ -212,16 +198,18 @@ class SPH_main(object):
             # Set new attributes
             part.set_v(v)
             part.set_x(x)
+            part.set_rho(rho)
+            part.set_v(a)
+            part.set_D(D)
 
-            # Append variables to the lists
-            x_all.append(x)
-            v_all.append(v)
-            rho_all.append(rho)
-            a_all.append(a)
-            D_all.append(D)
-            t_all.append(t)
+            # Allocate grid points
+            self.allocate_to_grid()
 
-        return t_all, x_all, v_all, rho_all, a_all, D_all
+            # append to list
+            updated_particles.append(part)
+
+        return updated_particles
+
 
     def W(self, particle, other_particle):
         """
@@ -247,7 +235,7 @@ class SPH_main(object):
         num = 0
         denum = 0
         for nei in neighbours:
-            w = self.W(part, neighbours)
+            w = self.W(part, nei)
             num += w
             denum += (w / nei.rho)
         return num / denum
@@ -338,43 +326,27 @@ class SPH_main(object):
 
         return t_all, x_all, v_all, rho_all, a_all, D_all
 
-
-    def simulate(self):
+    def simulate(self, dt, smooth_t=10):
         # We are returning a list of particles per time step in a list of lists
-
+        t = self.t0
         particles_times = []
-        time_array = []
-        for particle in self.particle_list:
-            # Get neighbours of particle
-            neighbours = self.neighbour_iterate(particle)
-            # Navier-stokes equation
-            a, D = self.navier_cont(particle, neighbours)
-            print("calculated navier stokes")
-            # Set the acceleration and derivative of density
-            particle.a = a
-            particle.D = D
-            # Forward euler step in time
-            t_all, x_all, v_all, rho_all, a_all, D_all = self.forward_euler(particle, self.t0, self.t_max, neighbours)
-            time_array = t_all.copy()
-            print("forward euler particle")
-            print("xs", x_all)
-            print("vs", v_all)
-            print("rhos", rho_all)
-            print("as", a_all)
-            print("Ds", D_all)
+        time_array = [t]
+        particles = self.particle_list
+        while t < self.t_max:
+            print("current time", t)
+            smooth = False
+            # Smooth after some time steps
+            if t == self.t0 + smooth_t * dt:
+                smooth = True
+            particles = self.forward_euler(particles, t, dt, smooth=smooth)
+            print("random particle")
+            print("acc", particles[300].a)
+            print("vel", particles[300].v)
+            print("rho", particles[300].rho)
+            print("D", particles[300].D)
+            print("x", particles[300].x)
 
-
-            particles = [None] * len(t_all)
-            for i in range(len(t_all)):
-                # Update the particle attributes
-                particle.set_x(x_all[i])
-                particle.set_v(v_all[i])
-                particle.set_rho(rho_all[i])
-                particle.set_a(a_all[i])
-                particle.set_D(D_all[i])
-
-                particles.append(particle)
-            print("updated attributes of particles")
+            t = t + dt
             particles_times.append(particles)
 
         # List of particles in each time step
@@ -391,16 +363,19 @@ domain = SPH_main()
 domain.set_values()
 """Initialises the search grid"""
 domain.initialise_grid()
+print("initialised grid")
+
 
 """Places particles in a grid over the entire domain - In your code you will need to place the fluid particles in only the appropriate locations"""
 domain.place_points(domain.min_x, domain.max_x)
-
+print("placed points")
 """This is only for demonstration only - In your code these functions will need to be inside the simulation loop"""
 """This function needs to be called at each time step (or twice a time step if a second order time-stepping scheme is used)"""
 domain.allocate_to_grid()
+print("allocated to grid")
 
 """This example is only finding the neighbours for a single partle - this will need to be inside the simulation loop and will need to be called for every particle"""
 # domain.neighbour_iterate(domain.particle_list[100])
 
-domain.simulate()
+domain.simulate(domain.dt)
 
