@@ -1,7 +1,7 @@
 """SPH class to find nearest neighbours..."""
 import numpy as np
 import particle as particleClass
-
+import copy
 
 class SPH_main(object):
     """Primary SPH object"""
@@ -102,6 +102,9 @@ class SPH_main(object):
             # Set the particle bucket index
             cnt.calc_index()
             # Keep in mind, list_num is bucket coordinates
+            # print("bucket", cnt.list_num[0], cnt.list_num[1])
+            # print("shape of search grid", self.min_x, self.max_x)
+            # print("particle x", cnt.x, cnt.boundary)
             self.search_grid[cnt.list_num[0], cnt.list_num[1]].append(cnt)
 
     def neighbour_iterate(self, part):
@@ -113,7 +116,7 @@ class SPH_main(object):
             for j in range(max(0, part.list_num[1] - 1),
                            min(part.list_num[1] + 2, self.max_list[1])):
                 for other_part in self.search_grid[i, j]:
-                    if part is not other_part:
+                    if not part.id == other_part.id:
                         dn = part.x - other_part.x
                         dist = np.sqrt(np.sum(dn ** 2))
                         if dist < 2.0 * self.h:
@@ -136,6 +139,8 @@ class SPH_main(object):
     def grad_W(self, part, other_part):
         dn = part.x - other_part.x  # dn is r_ij (vector)
         dist = np.sqrt(np.sum(dn ** 2))  # dist is |r_ij| (scalar)
+        #print("dn and dist", dn, dist)
+        #print("parts id", part.id, other_part.id)
         e_ij = dn / dist
         dw = self.diff_W(part, other_part)
         return dw * e_ij
@@ -145,20 +150,44 @@ class SPH_main(object):
         a = 0
         # Set derivative of density to 0 initially for sum
         D = 0
+        # Repulsive force
+        rf = 0
         for nei in neighbours:
             # Calculate distance between 2 points
             r = part.x - nei.x
             dist = np.sqrt(np.sum(r ** 2))
+
+            if not part.boundary and nei.boundary:
+                # Repulsive force calculation from paper
+                #  http://www.wseas.us/e-library/conferences/2011/Corfu/CUTAFLUP/CUTAFLUP-15.pdf
+                k = 0.01 * part.B() * self.gamma / self.rho0
+                rf = k * self.repulsive_force_psi(part, nei) * (r / (dist ** 2))
+                #print("repulsive force", rf)
+
             # Calculate the difference of velocity
             v = part.v - nei.v
             # Calculate acceleration of particle
             a += -(nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * self.grad_W(part, nei)) + \
-                 self.mu * (nei.m * ((1 / part.rho ** 2) + (1 / nei.rho ** 2)) * self.diff_W(part, nei) * (v / dist)) + self.g
+                 self.mu * (nei.m * ((1 / part.rho ** 2) + (1 / nei.rho ** 2)) * self.diff_W(part, nei) * (v / dist)) \
+                 + self.g + rf
+
             # normal
             e = r / dist
             # Calculate the derivative of the density
             D += nei.m * np.dot(self.diff_W(part, nei) * v, e)
         return a, D
+
+    def repulsive_force_psi(self, part, other_part, kj=0.5):
+        psi = 0
+        r = part.x - other_part.x
+        dist = np.sqrt(np.sum(r ** 2))
+        q = dist / self.h
+        if 0 <= q <= kj:
+            num = np.exp(-3*q**2) - np.exp(-3*kj**2)
+            denum = 1 - np.exp(-3*kj**2)
+            psi = num / denum
+        return psi
+
 
     def forward_euler(self, particles, t, dt, smooth=False):
         updated_particles = []
@@ -348,20 +377,22 @@ class SPH_main(object):
         # We are returning a list of particles per time step in a list of lists
         t = self.t0
         time_array = [t]
-        particles = self.particle_list
-        particles_times = [particles]
+        parts = copy.deepcopy(self.particle_list)
+        particles_times = [parts]
         while t < self.t_max:
             smooth = False
             # Smooth after some time steps
             if t == self.t0 + smooth_t * dt:
                 smooth = True
-            particles = scheme(particles, t, dt, smooth=smooth)
+            parts = copy.deepcopy(scheme(parts, t, dt, smooth=smooth))
+            #print(parts[30].list_attributes())
 
             t = t + dt
             time_array.append(t)
-            particles_times.append(particles)
+            particles_times.append(parts)
 
         particles_times = np.array(particles_times)
+
 
         # Return particles and time steps
         return particles_times, time_array
@@ -387,4 +418,5 @@ print("allocated to grid")
 
 """This example is only finding the neighbours for a single partle - this will need to be inside the simulation loop and will need to be called for every particle"""
 # domain.neighbour_iterate(domain.particle_list[100])
-domain.t_max = 0.01
+domain.t_max = 2
+particles, times = domain.simulate(domain.dt, domain.forward_euler)
