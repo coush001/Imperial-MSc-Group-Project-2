@@ -188,9 +188,9 @@ class SPH_main(object):
             print("in while loop, allocate grid")
 
             # Calculate a and D at time t
-            part.set_v(v)
-            part.set_x(x)
             a, D = self.navier_cont(part, neis)
+            part.set_v(a)
+            part.set_D(D)
             print("in while loop, navier cont")
 
             # Forward time step update
@@ -207,6 +207,10 @@ class SPH_main(object):
             if part.boundary:
                 x = 0
                 v = 0
+
+            # Set new attributes
+            part.set_v(v)
+            part.set_x(x)
 
             # Append variables to the lists
             x_all.append(x)
