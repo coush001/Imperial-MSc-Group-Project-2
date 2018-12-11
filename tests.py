@@ -13,5 +13,5 @@ domain.allocate_to_grid()
 
 def test_velocity_is_less_than_c0():
     velocities = np.array([particle.v for particle in domain.particle_list])
-    domain.simulate()
+    domain.simulate(domain.dt)
     assert(np.all(velocities < domain.c0))
