@@ -61,13 +61,13 @@ class SPH_main(object):
 
     def place_points(self, xmin, xmax):
         """Place points in a rectangle with a square spacing of size dx"""
-        inner_xmin = xmin + 2 * self.h
-        inner_xmax = xmax - 2 * self.h
+        inner_xmin = xmin + 2 * self.h  # Inner xmin is point 0,0
+        inner_xmax = xmax - 2 * self.h  # Inner xmax is point 20,10
 
         # Add boundary particles
         for i in np.arange(inner_xmin[0] - 3*self.dx, inner_xmax[0] + 3*self.dx, self.dx):  # Maybe change to 2*dx for 3 boundary points
             for j in np.arange(inner_xmin[1] - 3*self.dx, inner_xmax[1] + 3*self.dx, self.dx):
-                if not inner_xmin[0] < i < inner_xmax[0] and not inner_xmin[1] < j < inner_xmax[1]:
+                if not inner_xmin[0] < i < inner_xmax[0] or not inner_xmin[1] < j < inner_xmax[1]:
                     x = np.array([i, j])
                     particle = SPH_particle(self, x)
                     particle.calc_index()
@@ -75,15 +75,15 @@ class SPH_main(object):
                     self.particle_list.append(particle)
 
         # Add fluid particles
-        for i in np.arange(inner_xmin[0] + self.dx, inner_xmax[0] - self.dx, self.dx):  # X [0+dx : inner_xmax-dx]
-            for j in np.arange(self.min_x_with_boundary[1] + self.dx, 2, self.dx):  # Y [0+dx : 2]
+        for i in np.arange(inner_xmin[0] + self.dx, inner_xmax[0], self.dx):  # X [0+dx : 20-dx]
+            for j in np.arange(inner_xmin[1] + self.dx, inner_xmin[1] + 2, self.dx):  # Y [0+dx : 0+2]
                     x = np.array([i, j])
                     particle = SPH_particle(self, x)
                     particle.calc_index()
                     self.particle_list.append(particle)
 
-        for i in np.arange(inner_xmin[0] + self.dx, 3, self.dx):  # X [0+dx : 3]
-            for j in np.arange(2 + self.dx, 3, self.dx):  # Y [2+dx : 2 + 3]
+        for i in np.arange(inner_xmin[0] + self.dx, inner_xmin[0] + 3, self.dx):  # X [0+dx : 0+3]
+            for j in np.arange(inner_xmin[1] + 2, inner_xmin[1] + 2 + 3, self.dx):  # Y [0+2+dx : 0+2+3]
                     x = np.array([i, j])
                     particle = SPH_particle(self, x)
                     particle.calc_index()
@@ -279,12 +279,12 @@ domain.neighbour_iterate(domain.particle_list[100])
 
 a = domain.output_particle()
 
-fig = plt.figure(figsize=(8, 6))
+fig = plt.figure(figsize=(10, 5))
 ax1 = fig.add_subplot(111)
 ax1.plot(a[0], a[1], 'r.', )
 ax1.plot(a[2], a[3], 'b.', )
-ax1.set_xlim(-1, 21)
-ax1.set_ylim(-1, 11)
+# ax1.set_xlim(-1, 21)
+# ax1.set_ylim(-1, 11)
 
 """
 fig = plt.figure()
