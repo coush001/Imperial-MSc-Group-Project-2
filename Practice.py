@@ -85,6 +85,8 @@ xf = np.linspace(0, L, 1000)
 Cex = CE * (np.exp(Pe * xf / L) - 1) / (np.exp(Pe) - 1)
 ax1.plot(xf, Cex, 'k', lw=3, label='exact ss solution')
 line, = ax1.plot([], [], 'b', lw=3, label='transient numerical solution')
+ax1.plot(xf, Cex/0.8, 'g', lw=3, label='line1plot')
+line1, = ax1.plot([], [], 'r', lw=3, label='line1')
 time_text = ax1.text(0.78, 0.95, '', transform=ax1.transAxes)
 ax1.legend(loc='upper left', fontsize=14)
 
@@ -92,13 +94,15 @@ ax1.legend(loc='upper left', fontsize=14)
 def init():
     line.set_data([], [])
     time_text.set_text('')
-    return line, time_text
+    line1.set_data([], [])
+    return line, time_text, line1
 
 
 def animate(i):
     line.set_data(x, C[:, i])
+    line1.set_data(x, C[:, i]/0.8)
     time_text.set_text('time = {0:.3f}'.format(i*dt))
-    return line, time_text
+    return line, time_text, line1
 
 
 number_frames = 100

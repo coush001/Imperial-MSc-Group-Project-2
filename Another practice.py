@@ -296,8 +296,33 @@ a = domain.output_particle()
 
 fig = plt.figure(figsize=(10, 5))
 ax1 = fig.add_subplot(111)
-ax1.plot(a[0], a[1], 'r.', )
-ax1.plot(a[2], a[3], 'b.', )
+ax1.plot(a[0], a[1], 'b.', )
+moving_part, = ax1.plot(a[0], a[1], 'b.', )
+ax1.plot(a[2], a[3], 'r.', )
+boundary, = ax1.plot(a[2], a[3], 'r.', )
+time_text = ax1.text(0.78, 0.85, '', transform=ax1.transAxes)
+dt = 0.01
+def init():
+    moving_part.set_data([], [])
+    time_text.set_text('')
+    boundary.set_data([], [])
+    return moving_part, time_text, boundary
+
+def animate(i):
+    moving_part.set_data(a[0], a[1])
+    boundary.set_data(a[2], a[3])
+    time_text.set_text('time = {0:.3f}'.format(i*dt))
+    return moving_part, time_text, boundary
+
+tend = 1
+# assume a constant dt and so can define all the t's in advance
+t = np.arange(0, tend, dt)
+
+number_frames = 100
+frames = np.arange(0, len(a[0]), int(len(t)/number_frames))
+anim = animation.FuncAnimation(fig, animate, frames,
+                               interval=40, blit=True, init_func=init)
+
 # ax1.set_xlim(-1, 21)
 # ax1.set_ylim(-1, 11)
 domain.write_to_file()
