@@ -34,7 +34,7 @@ class SPH_main(object):
         # For predictor-corrector scheme
         self.C_CFL = 0.2
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(20, 10), dx=0.02, h_fac=1.3, t0=0.0, t_max=0.3, dt=0, C_CFL=0.2):
+    def set_values(self, min_x=(0.0, 0.0), max_x=(20, 10), dx=0.02, h_fac=1.3, t0=0.0, t_max=0.001, dt=0, C_CFL=0.2):
         """Set simulation parameters."""
 
         self.min_x[:] = min_x
@@ -59,7 +59,6 @@ class SPH_main(object):
         """Calculates the size of the array required to store the search array"""
         self.max_list = np.array((self.max_x - self.min_x) / (2.0 * self.h) + 1,
                                  int)
-        print('shape of bucket lists', self.max_list)
         self.search_grid = np.empty(self.max_list, object)
 
     def place_points(self, xmin, xmax):
@@ -104,7 +103,6 @@ class SPH_main(object):
             cnt.calc_index()
             # Keep in mind, list_num is bucket coordinates
             self.search_grid[cnt.list_num[0], cnt.list_num[1]].append(cnt)
-            print(cnt.list_num[0], cnt.list_num[1])
 
     def neighbour_iterate(self, part):
         """Find all the particles within 2h of the specified particle"""
@@ -164,12 +162,12 @@ class SPH_main(object):
             # Calculate the difference of velocity
             v = part.v - nei.v
             # Calculate acceleration of particle
-            a += -(nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * self.grad_W()) + \
-                 self.mu * (nei.m * ((1 / part.rho ** 2) + (nei.P / nei.rho ** 2)) * self.diff_W() * (v / dist)) + self.g
+            a += -(nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * self.grad_W(part, nei)) + \
+                 self.mu * (nei.m * ((1 / part.rho ** 2) + (nei.P / nei.rho ** 2)) * self.diff_W(part, nei) * (v / dist)) + self.g
             # normal
             e = r / dist
             # Calculate the derivative of the density
-            D += nei.m * np.dot(self.diff_W() * v, e)
+            D += nei.m * np.dot(self.diff_W(part, nei) * v, e)
         return a, D
 
     def forward_euler(self, part, t0, t_max, neis, smooth_t=10):
@@ -184,13 +182,16 @@ class SPH_main(object):
         rho = part.rho
         t = t0
         while t < t_max:
+            print("in while loop", t)
             # Allocate grid points
             self.allocate_to_grid()
+            print("in while loop, allocate grid")
 
             # Calculate a and D at time t
             part.set_v(v)
             part.set_x(x)
             a, D = self.navier_cont(part, neis)
+            print("in while loop, navier cont")
 
             # Forward time step update
             x = x + self.dt * v
@@ -343,23 +344,32 @@ class SPH_main(object):
             neighbours = self.neighbour_iterate(particle)
             # Navier-stokes equation
             a, D = self.navier_cont(particle, neighbours)
+            print("calculated navier stokes")
             # Set the acceleration and derivative of density
             particle.a = a
             particle.D = D
             # Forward euler step in time
             t_all, x_all, v_all, rho_all, a_all, D_all = self.forward_euler(particle, self.t0, self.t_max, neighbours)
             time_array = t_all.copy()
+            print("forward euler particle")
+            print("xs", x_all)
+            print("vs", v_all)
+            print("rhos", rho_all)
+            print("as", a_all)
+            print("Ds", D_all)
+
 
             particles = [None] * len(t_all)
             for i in range(len(t_all)):
                 # Update the particle attributes
-                particle.x = x_all[i]
-                particle.v = v_all[i]
-                particle.rho = rho_all[i]
-                particle.a = a_all[i]
-                particle.D = D_all[i]
+                particle.set_x(x_all[i])
+                particle.set_v(v_all[i])
+                particle.set_rho(rho_all[i])
+                particle.set_a(a_all[i])
+                particle.set_D(D_all[i])
 
                 particles.append(particle)
+            print("updated attributes of particles")
             particles_times.append(particles)
 
         # List of particles in each time step
@@ -385,4 +395,7 @@ domain.place_points(domain.min_x, domain.max_x)
 domain.allocate_to_grid()
 
 """This example is only finding the neighbours for a single partle - this will need to be inside the simulation loop and will need to be called for every particle"""
-domain.neighbour_iterate(domain.particle_list[100])
+# domain.neighbour_iterate(domain.particle_list[100])
+
+domain.simulate()
+
