@@ -34,7 +34,7 @@ class SPH_main(object):
         # For predictor-corrector scheme
         self.C_CFL = 0.2
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(20, 10), dx=0.02, h_fac=1.3, t0=0.0, t_max=0.001, dt=0, C_CFL=0.2):
+    def set_values(self, min_x=(0.0, 0.0), max_x=(20, 10), dx=0.2, h_fac=1.3, t0=0.0, t_max=0.001, dt=0, C_CFL=0.2):
         """Set simulation parameters."""
 
         self.min_x[:] = min_x
@@ -118,7 +118,7 @@ class SPH_main(object):
                         dist = np.sqrt(np.sum(dn ** 2))
                         if dist < 2.0 * self.h:
                             neighbours.append(other_part)
-                            print("id:", other_part.id, "dn:", dn)
+                            # print("id:", other_part.id, "dn:", dn)
         return neighbours
 
     def diff_W(self, part, other_part):
@@ -164,7 +164,7 @@ class SPH_main(object):
             v = part.v - nei.v
             # Calculate acceleration of particle
             a += -(nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * self.grad_W(part, nei)) + \
-                 self.mu * (nei.m * ((1 / part.rho ** 2) + (nei.P / nei.rho ** 2)) * self.diff_W(part, nei) * (v / dist)) + self.g
+                 self.mu * (nei.m * ((1 / part.rho ** 2) + (1 / nei.rho ** 2)) * self.diff_W(part, nei) * (v / dist)) + self.g
             # normal
             e = r / dist
             # Calculate the derivative of the density
@@ -173,13 +173,22 @@ class SPH_main(object):
 
     def forward_euler(self, particles, t, dt, smooth=False):
         updated_particles = []
+        print(len(particles))
+        count = 0
         for part in particles:
+            print("count particle", count)
             # Get neighbours of each particle
             neis = self.neighbour_iterate(part)
+            print("THIS PARTICLE IS DONE")
+            count += 1
+
+            x = part.x
+            v = part.v
 
             # Forward time step update
-            x = part.x + self.dt * part.v
-            v = part.v + self.dt * part.a
+            if not part.boundary:
+                x = part.x + self.dt * part.v
+                v = part.v + self.dt * part.a
             rho = part.rho + self.dt * part.D
 
             # Smooth after some time steps
@@ -187,13 +196,17 @@ class SPH_main(object):
                 rho = self.smooth(part, neis)
             t = t + dt
 
-            # Calculate a and D at time t
-            a, D = self.navier_cont(part, neis)
-
             # If it is a boundary particle, then
             if part.boundary:
-                x = 0
+                print("ÏF YOU ARE HERE, YOU ARE A BOUNDARY")
                 v = 0
+
+            # Calculate a and D at time t
+            if count == 300:
+                print("velocitty", v)
+            a, D = self.navier_cont(part, neis)
+            if count == 300:
+                print("v, a, D", v, a, D)
 
             # Set new attributes
             part.set_v(v)
@@ -332,6 +345,14 @@ class SPH_main(object):
         particles_times = []
         time_array = [t]
         particles = self.particle_list
+        print("initialise")
+        print("random particle")
+        print("acc", particles[300].a)
+        print("vel", particles[300].v)
+        print("rho", particles[300].rho)
+        print("D", particles[300].D)
+        print("x", particles[300].x)
+        print("boundary", particles[300].boundary)
         while t < self.t_max:
             print("current time", t)
             smooth = False
@@ -345,8 +366,10 @@ class SPH_main(object):
             print("rho", particles[300].rho)
             print("D", particles[300].D)
             print("x", particles[300].x)
+            print("boundary", particles[300].boundary)
 
             t = t + dt
+            time_array.append(t)
             particles_times.append(particles)
 
         # List of particles in each time step
