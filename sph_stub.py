@@ -256,80 +256,106 @@ class SPH_main(object):
 
             return self.C_CFL * np.min(dt_cfl, dt_f, dt_A)
 
-    def predictor_corrector(self, part, t0, t_max, neis, smooth_t=10):
-        x_all = [part.x]
-        v_all = [part.v]
-        rho_all = [part.rho]
-        a_all = [part.a]
-        D_all = [part.D]
-        t_all = [t0]
-        x = part.x
-        v = part.v
-        rho = part.rho
-        t = t0
-        while t < t_max:
-            # Allocate grid points
-            self.allocate_to_grid()
+    def predictor_corrector(self, particles, t, dt, smooth=False):
+        updated_particles = []
+        for part in particles:
+            # Get neighbours of each particle
+            neis = self.neighbour_iterate(part)
 
-            # Calculate a and D at time t
+            x = part.x
+            v = part.v
+            rho = part.rho
+
+            # Forward time step update
+            if not part.boundary:
+                # Half-step
+                x_h = part.x + 0.5 * self.var_dt(part, neis) * part.v
+                v_h = part.v * 0.5 * self.var_dt(part, neis) * part.a
+                rho_h = part.rho + 0.5 * self.var_dt(part, neis) * part.D
+
+                prev_x = part.x
+                prev_v = part.v
+                prev_rho = part.rho
+
+                # Calculate a and D at time t + 1/2
+                part.set_v(v_h)
+                part.set_x(x_h)
+                part.set_rho(rho_h)
+                a_h, D_h = self.navier_cont(part, neis)
+
+                # Full-step part 1
+                x_ = prev_x + 0.5 * self.var_dt(part, neis) * v_h
+                v_ = prev_v + 0.5 * self.var_dt(part, neis) * a_h
+                rho_ = prev_rho + 0.5 * self.var_dt(part, neis) * D_h
+
+                # Full-step part 2
+                x = 2 * x_ - prev_x
+                v = 2 * v_ - prev_v
+                rho = 2 * rho_ - prev_rho
+
+            if part.boundary:
+                # Half-step
+                rho_h = part.rho + 0.5 * self.var_dt(part, neis) * part.D
+
+                prev_rho = part.rho
+
+                # Calculate a and D at time t + 1/2
+                part.set_rho(rho_h)
+                a_h, D_h = self.navier_cont(part, neis)
+
+                # Full-step part 1
+                rho_ = prev_rho + 0.5 * self.var_dt(part, neis) * D_h
+
+                # Full-step part 2
+                rho = 2 * rho_ - prev_rho
+
+                # Set v to zero
+                v = np.zeros(2)
+
+            # Smooth after some time steps
+            if smooth:
+                rho = self.smooth(part, neis)
+            t = t + dt
+
+            # Set new attributes
             part.set_v(v)
             part.set_x(x)
             part.set_rho(rho)
+
+            # Calculate a and D at time t
             a, D = self.navier_cont(part, neis)
 
-            # Half-step
-            x_h = x + 0.5 * self.var_dt(part, neis) * v
-            v_h = v * 0.5 * self.var_dt(part, neis) * a
-            rho_h = rho + 0.5 * self.var_dt(part, neis) * D
+            # Set new attributes
+            part.set_a(a)
+            part.set_D(D)
 
-            # Calculate a and D at time t + 1/2
-            part.set_v(v_h)
-            part.set_x(x_h)
-            part.set_rho(rho_h)
-            a_h, D_h = self.navier_cont(part, neis)
+            # Allocate grid points
+            self.allocate_to_grid()
 
-            # Full-step part 1
-            x_ = x + 0.5 * self.var_dt(part, neis) * v_h
-            v_ = v + 0.5 * self.var_dt(part, neis) * a_h
-            rho_ = rho + 0.5 * self.var_dt(part, neis) * D_h
+            # append to list
+            updated_particles.append(part)
 
-            # Full-step part 2
-            x = 2 * x_ - x
-            v = 2 * v_ - v
-            rho = 2 * rho_ - rho
+        return updated_particles
 
-            # Smooth after some time steps
-            if t == t0 + smooth_t * self.var_dt(part, neis):
-                rho = self.smooth(part, neis)
-            t = t + self.dt
-
-            # Set for boundaries
-            if part.boundary:
-                x = 0
-                v = 0
-
-            # Append variables to the lists
-            x_all.append(x)
-            v_all.append(v)
-            rho_all.append(rho)
-            a_all.append(a)
-            D_all.append(D)
-            t_all.append(t)
-
-        return t_all, x_all, v_all, rho_all, a_all, D_all
-
-    def simulate(self, dt, smooth_t=10):
+    def simulate(self, dt, scheme, smooth_t=10):
+        """
+        :param self:
+        :param dt:
+        :param scheme: This is a time-stepping scheme - can either be forward euler or predictor corrector method
+        :param smooth_t:
+        :return:
+        """
         # We are returning a list of particles per time step in a list of lists
         t = self.t0
-        particles_times = []
         time_array = [t]
         particles = self.particle_list
+        particles_times = [particles]
         while t < self.t_max:
             smooth = False
             # Smooth after some time steps
             if t == self.t0 + smooth_t * dt:
                 smooth = True
-            particles = self.forward_euler(particles, t, dt, smooth=smooth)
+            particles = scheme(particles, t, dt, smooth=smooth)
 
             t = t + dt
             time_array.append(t)
@@ -363,5 +389,5 @@ print("allocated to grid")
 """This example is only finding the neighbours for a single partle - this will need to be inside the simulation loop and will need to be called for every particle"""
 # domain.neighbour_iterate(domain.particle_list[100])
 
-domain.simulate(domain.dt)
+domain.simulate(domain.dt, domain.forward_euler)
 
