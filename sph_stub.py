@@ -127,10 +127,10 @@ class SPH_main(object):
         q = dist / self.h
         dw = 0
         if 0 <= q <= 1:
-            dw = (10 / (7 * np.pi * self.h ** 2)) * ((-3 * dn)/self.h**2 + (9/4) * (dist * dn) / self.h**3)
+            dw = (10 / (7 * np.pi * self.h ** 2)) * ((-2 * dist)/self.h**2 + (9/4) * dist**2 / self.h**3)
         if 1 <= q <= 2:
-            dw = (10 / (7 * np.pi * self.h ** 2)) * ((-1/4) * (3 * dist * dn) / self.h**3 +
-                                                     (3 * dn)/self.h**2 - (3/self.h**3) * (dn / dist))
+            dw = (10 / (7 * np.pi * self.h ** 2)) \
+                 * 1/4 * (-3 * dist**2 / self.h**3 + 12 * dist/self.h**2 - 12/self.h**3)
         if 2 < q:
             dw = 0
         return dw
@@ -141,11 +141,12 @@ class SPH_main(object):
         e_ij = dn / dist
         q = dist / self.h
         dw = 0
+
         if 0 <= q <= 1:
-            dw = (10 / (7 * np.pi * self.h ** 2)) * ((-3 * dn)/self.h**2 + (9/4) * (dist * dn) / self.h**3)
+            dw = (10 / (7 * np.pi * self.h ** 2)) * ((-2 * dist)/self.h**2 + (9/4) * dist**2 / self.h**3)
         if 1 <= q <= 2:
-            dw = (10 / (7 * np.pi * self.h ** 2)) * ((-1/4) * (3 * dist * dn) / self.h**3 +
-                                                     (3 * dn)/self.h**2 - (3/self.h**3) * (dn / dist))
+            dw = (10 / (7 * np.pi * self.h ** 2)) \
+                 * 1/4 * (-3 * dist**2 / self.h**3 + 12 * dist/self.h**2 - 12/self.h**3)
         if 2 < q:
             dw = 0
         return dw * e_ij
