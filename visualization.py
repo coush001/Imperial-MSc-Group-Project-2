@@ -55,6 +55,7 @@ class SPH_main(object):
         """Place points in a rectangle with a square spacing of size dx"""
 
         x = np.array(xmin)
+        #print(xmin[1])
         
         while x[0] <= xmax[0]:
             x[1] = xmin[1]
