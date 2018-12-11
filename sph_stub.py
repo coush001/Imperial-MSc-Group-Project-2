@@ -50,39 +50,42 @@ class SPH_main(object):
         """Initalise simulation grid."""
 
         """Increases the minimum and maximum to account for the virtual particle padding that is required at boundaries"""
-        self.min_x_with_boundary = self.min_x - 2.0 * self.h
-        self.max_x_with_boundary = self.max_x + 2.0 * self.h
+        self.min_x = self.min_x - 2.0 * self.h
+        self.max_x = self.max_x + 2.0 * self.h
 
         """Calculates the size of the array required to store the search array"""
-        self.max_list = np.array((self.max_x_with_boundary - self.min_x_with_boundary) / (2.0 * self.h) + 1,
+        self.max_list = np.array((self.max_x - self.min_x) / (2.0 * self.h) + 1,
                                  int)
-
+        print('shape of bucket lists', self.max_list)
         self.search_grid = np.empty(self.max_list, object)
 
     def place_points(self, xmin, xmax):
         """Place points in a rectangle with a square spacing of size dx"""
+        inner_xmin = xmin + 2 * self.h
+        inner_xmax = xmax - 2 * self.h
 
         # Add boundary particles
-        for i in np.arange(self.min_x_with_boundary[0], self.max_x_with_boundary[0], self.dx):
-            for j in np.arange(self.min_x_with_boundary[1], self.max_x_with_boundary[1], self.dx):
-                if not self.min_x[0] < i < self.max_x[0] and not self.min_x[1] < j < self.max_x[1]:
-                    x = np.array(i, j)
+        for i in np.arange(inner_xmin[0] - 3*self.dx, inner_xmax[0] + 3*self.dx, self.dx): #Maybe change to 2*dx for 3 boudary points
+            for j in np.arange(inner_xmin[1] - 3*self.dx, inner_xmax[1] + 3*self.dx, self.dx):
+                if not inner_xmin[0] < i < inner_xmax[0] and not inner_xmax[1] < j < self.max_x[1]:
+                    print(i, j)
+                    x = np.array([i, j])
                     particle = SPH_particle(self, x)
                     particle.calc_index()
                     particle.boundary = True
                     self.particle_list.append(particle)
 
-        # Add interior particles
-        for i in np.arange(self.min_x[0], self.max_x[0], self.dx):  # X
-            for j in np.arange(self.min_x_with_boundary[1], 2, self.dx):  # Y
-                    x = np.array(i, j)
+        # Add fluid particles
+        for i in np.arange(inner_xmin[0] + self.dx, inner_xmax[0] - self.dx, self.dx):  # X [0+dx : inner_xmax-dx]
+            for j in np.arange(self.min_x_with_boundary[1] + self.dx, 2, self.dx):  # Y [0+dx : 2]
+                    x = np.array([i, j])
                     particle = SPH_particle(self, x)
                     particle.calc_index()
                     self.particle_list.append(particle)
 
-        for i in np.arange(self.min_x[0], 3, self.dx):  # X
-            for j in np.arange(2, 5, self.dx):  # Y
-                    x = np.array(i, j)
+        for i in np.arange(inner_xmin[0] + self.dx, 3, self.dx):  # X [0+dx : 3]
+            for j in np.arange(2 + self.dx, 3, self.dx):  # Y [2+dx : 2 + 3]
+                    x = np.array([i, j])
                     particle = SPH_particle(self, x)
                     particle.calc_index()
                     self.particle_list.append(particle)
@@ -96,6 +99,7 @@ class SPH_main(object):
         for cnt in self.particle_list:
             # Keep in mind, list_num is bucket coordinates
             self.search_grid[cnt.list_num[0], cnt.list_num[1]].append(cnt)
+            print(cnt.list_num[0], cnt.list_num[1])
 
     def neighbour_iterate(self, part):
         """Find all the particles within 2h of the specified particle"""
@@ -258,5 +262,6 @@ domain.place_points(domain.min_x, domain.max_x)
 """This is only for demonstration only - In your code these functions will need to be inside the simulation loop"""
 """This function needs to be called at each time step (or twice a time step if a second order time-stepping scheme is used)"""
 domain.allocate_to_grid()
+
 """This example is only finding the neighbours for a single partle - this will need to be inside the simulation loop and will need to be called for every particle"""
 domain.neighbour_iterate(domain.particle_list[100])
