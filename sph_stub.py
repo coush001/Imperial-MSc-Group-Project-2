@@ -356,16 +356,16 @@ class SPH_main(object):
             if t == self.t0 + smooth_t * dt:
                 smooth = True
             particles = scheme(particles, t, dt, smooth=smooth)
+            print(particles[1200].list_attributes())
 
             t = t + dt
             time_array.append(t)
             particles_times.append(particles)
 
-        # List of particles in each time step
-        result = np.array(particles_times).T.tolist()
+        particles_times = np.array(particles_times)
 
         # Return particles and time steps
-        return result, time_array
+        return particles_times, time_array
 
 
 """Create a single object of the main SPH type"""
@@ -388,6 +388,6 @@ print("allocated to grid")
 
 """This example is only finding the neighbours for a single partle - this will need to be inside the simulation loop and will need to be called for every particle"""
 # domain.neighbour_iterate(domain.particle_list[100])
-
+domain.t_max = 0.01
 domain.simulate(domain.dt, domain.forward_euler)
 
