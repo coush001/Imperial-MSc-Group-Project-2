@@ -1,146 +1,109 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm
 
-# physical parameter
-kappa = 1.
-
-# numerical parameters (the spatial mesh)
-Lx = 1
-Ly = 1
-Nx = 50
-Ny = 50
-dx = Lx / (Nx - 1) # since Nx 'points' means Nx-1 'intervals'
-dy = Ly / (Ny - 1)
-
-# read the docs to see the ordering that mgrid gives us
-X, Y = np.mgrid[0:Nx:1, 0:Ny:1]
-X = dx*X
-Y = dy*Y
-# the following is an alternative to the three lines above
-#X, Y = np.mgrid[0: Lx + 1e-10: dx, 0: Ly + 1e-10: dy]
-# but without the need to add a "small" increment to ensure
-# the Lx and Ly end points are included 
-
-# define an initial condition - here a "rectangle" or square top hat function
-# zero in the far field, and a square region of value 1, in this example
-# centred in the middle of the domain [0.5,0.5]
-C = np.zeros_like(X)
-C[(X > 0.4) & (X < 0.6) & (Y > 0.4) & (Y < 0.6)] = 1
-
-# the following is how we can start to plot in 3D
-fig = plt.figure(figsize=(7, 7))
-ax1 = fig.add_subplot(111, projection='3d')
-
-surf = ax1.plot_surface(X, Y, C, rstride=1, cstride=1,
-                        cmap=cm.coolwarm, linewidth=0, antialiased=True)
-fig.colorbar(surf, shrink=0.5, aspect=5)
-
-ax1.set_xlim(0, Lx)
-ax1.set_ylim(0, Ly)
-ax1.set_zlim(0, 1)
-
-ax1.set_xlabel('$x$', fontsize=14)
-ax1.set_ylabel('$y$', fontsize=14)
-ax1.set_zlabel('$C$', fontsize=14)
-
-ax1.set_title('Initial condition', fontsize=14);
-
-def solve_diff_central(C, kappa, dt, tend, dx, dy):
-    """ Function to evolve the solution in array C
-    forward in time an amount 'tend' under diffusion, using time steps
-    of size 'dt' and assuming a constant mesh size of dx and dy,
-    using a central difference in space.
+def assemble_adv_diff_disc_matrix_central(U, kappa, L, N):
+    """ Function to form the spatial discretisation matrix for 
+    advection-diffusion using central differences, given physical 
+    parameters U and kappa and assuming a uniform mesh of N interior 
+    nodes on the interval [0,L] with the ghost node approach.
+    
+    Returns the discretisation matrix A as well as the mesh x.
     """
-    t = 0
-    while t < tend:
-        t += dt
-        Cprev = C.copy()
-        C[1:-1, 1:-1] = Cprev[1:-1, 1:-1] + dt * kappa * (
-              np.diff(Cprev[:, 1:-1], n=2, axis=0) / (dx**2) +
-              np.diff(Cprev[1:-1, :], n=2, axis=1) / (dy**2) )
-        # Dirichlet BCs
-        C[0, :] = 0
-        C[-1, :] = 0
-        C[:, 0] = 0
-        C[:, -1] = 0
-    return C
+    # define spatial mesh
+    dx = L / N
+    x = np.linspace(-dx / 2, dx / 2 + L, N + 2)
+    # define first the parameters we defined above
+    r_diff = kappa / dx**2
+    r_adv = 0.5 * U / dx
 
-# fig 1 will be an example of plotting the solution in 3D
-fig1 = plt.figure(figsize=(12, 12))
-fig1.tight_layout(w_pad=6, h_pad=6)
+    # and use them to create the B matrix - recall zeros on the first and last rows
+    B = np.zeros((N + 2, N + 2))
+    for i in range(1, N + 1):
+        B[i, i - 1] = r_diff + r_adv
+        B[i, i] = -2 * r_diff
+        B[i, i + 1] = r_diff - r_adv
 
-# and fig 2 will show how to represent the soln as a 2D contour plot
-fig2 = plt.figure(figsize=(10, 10))
-fig2.tight_layout(w_pad=6, h_pad=6)
+    # create M matrix - start from the identity
+    M = np.eye(N + 2)
+    # and fix the first and last rows
+    M[0,(0,1)] = [0.5, 0.5]
+    M[-1,(-2,-1)] = [0.5, 0.5]   
 
-# let's compute solution and plot for 4 different end times
-C = np.zeros_like(X)
-C[(X > 0.4) & (X < 0.6) & (Y > 0.4) & (Y < 0.6)] = 1
-dt = 0.0001
-for (i, tend) in enumerate((dt*0, dt*10, dt*100, dt*1000)):
-    C = solve_diff_central(C, kappa, dt, tend, dx, dy)
-    ax = fig1.add_subplot(2, 2, i+1, projection='3d')
-    surf = ax.plot_surface(X, Y, C, rstride=1, cstride=1,
-                           cmap=cm.coolwarm, linewidth=0, antialiased=True)
-    fig1.colorbar(surf, shrink=0.5, aspect=5)
-    ax.set_xlim(0, Lx)
-    ax.set_ylim(0, Ly)
-    ax.set_zlim(0, 1)
-    ax.set_xlabel('$x$', fontsize=14)
-    ax.set_ylabel('$y$', fontsize=14)
-    ax.set_zlabel('$C$', fontsize=14)
-    ax.set_title('unsteady diffusion - central. $t$={0:.4f}'.format(tend), fontsize=14)
+    # find A matrix
+    A = np.linalg.inv(M) @ B
+    return A, x
 
-    # try a contour plot as well
-    ax = fig2.add_subplot(2, 2, i+1)
-    ax.contour(X,Y,C,cmap=cm.coolwarm)
-    fig2.colorbar(surf, shrink=0.5, aspect=5)
-    ax.set_xlim(0, Lx)
-    ax.set_ylim(0, Ly)
-    ax.axis('equal')
-    ax.set_xlabel('$x$', fontsize=14)
-    ax.set_ylabel('$y$', fontsize=14)
-    ax.set_title('unsteady diffusion - central. $t$={0:.4f}'.format(tend), fontsize=14)
+Pe = 5
+L = 1
+U = 1
+CE = 1
+kappa = 1/Pe
 
-# and this is how we could generate a movie
+# define number of points in spatial mesh (N+2 including ghose nodes)
+N = 40
+
+# use the function we just wrote to form the spatial mesh and the discretisation matrix 
+A, x = assemble_adv_diff_disc_matrix_central(U, kappa, L, N)
+
+# define a time step size
+dt = 0.001
+
+# and compute and print some key non-dimensional parameters - we'll explain these later
+dx = L / N
+print('Pe_c: {0:.5f}'.format(U*dx/kappa))
+print('CFL: {0:.5f}'.format(U*dt/dx))
+print('r: {0:.5f}'.format(kappa*dt/(dx**2)))
+
+# define the end time and hence some storage for all solution levels
+tend = 1
+# assume a constant dt and so can define all the t's in advance
+t = np.arange(0, tend, dt)
+# and we can also set up a matrix to store the discrete solution in space-time
+# with our a priori knowledge of the size required.
+C = np.empty((len(x),len(t)))
+
+# define an initial condition - this one just linearly varies between the BC values, 
+# i.e. 0 and 1 - this linear solution is also the steady state solution to the diffusion 
+# only problem of course.
+# Let's place this discrete solution in the first column of the C matrix which stores all solution levels
+C[:,0] = CE * x / L
+
+# now let's do the time-stepping via a for loop
+# we will need the identity matrix so define it once outside the loop
+I = np.eye(len(x))
+for n in range(len(t)-1):
+    C[:,n+1] = (I + A * dt) @ C[:, n]
+ 
+
+fig = plt.figure(figsize=(6, 6))
+ax1 = fig.add_subplot(111, xlim=(0, 1), ylim=(-0.1, 1.1),
+                      xlabel='$x$', ylabel='$C$',
+                      title='Advection-Diffusion - convergence to the steady state solution')
+# if we don't close the figure here we get a rogue frame under the movie
+xf = np.linspace(0, L, 1000)
+Cex = CE * (np.exp(Pe * xf / L) - 1) / (np.exp(Pe) - 1)
+ax1.plot(xf, Cex, 'k', lw=3, label='exact ss solution')
+line, = ax1.plot([], [], 'b', lw=3, label='transient numerical solution')
+time_text = ax1.text(0.78, 0.95, '', transform=ax1.transAxes)
+ax1.legend(loc='upper left', fontsize=14)
 
 
-plot_args = {'rstride': 1, 'cstride': 1, 'cmap':
-             cm.coolwarm, 'linewidth': 0., 'antialiased': True, 'color': 'w'}
-
-# First set up the figure, the axis, and the plot element we want to animate
-fig = plt.figure(figsize=(8, 8))
-ax = fig.add_subplot(111, projection='3d')
-
-C = np.zeros_like(X)
-C[(X > 0.4) & (X < 0.6) & (Y > 0.4) & (Y < 0.6)] = 1
-
-# first frame
-plot = ax.plot_surface(X, Y, C, **plot_args)
-plt.close()
+def init():
+    line.set_data([], [])
+    time_text.set_text('')
+    return line, time_text
 
 
-def data_gen(framenumber, C, plot):
-    # make sure initial condition is in plot
-    if framenumber == 0:
-        C = np.zeros_like(X)
-        C[(X > 0.4) & (X < 0.6) & (Y > 0.4) & (Y < 0.6)] = 1
-    else:
-        # update solution by 2 dts per frame
-        C = solve_diff_central(C, kappa, dt, 2*dt, dx, dy)
-    ax.clear()
-    plot = ax.plot_surface(X, Y, C, **plot_args)
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
-    ax.set_zlim(0, 1)
-    ax.set_xlabel('$x$', fontsize=14)
-    ax.set_ylabel('$y$', fontsize=14)
-    ax.set_zlabel('$C$', fontsize=14)
-    ax.set_title('Diffusion - central', fontsize=14)
-    return plot,
+def animate(i):
+    line.set_data(x, C[:, i])
+    time_text.set_text('time = {0:.3f}'.format(i*dt))
+    return line, time_text
 
-anim = animation.FuncAnimation(fig, data_gen, frames=np.arange(0, 50), fargs=(C, plot),
-                               interval=50, blit=True)
+
+number_frames = 100
+frames = np.arange(0, C.shape[1], int(len(t)/number_frames))
+anim = animation.FuncAnimation(fig, animate, frames,
+                               interval=40, blit=True, init_func=init)
+
+plt.show()

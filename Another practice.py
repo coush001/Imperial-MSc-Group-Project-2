@@ -3,6 +3,7 @@
 from itertools import count
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import animation
 
 
 class SPH_main(object):
@@ -24,7 +25,7 @@ class SPH_main(object):
         """Set simulation parameters."""
 
         self.min_x[:] = (0.0, 0.0)
-        self.max_x[:] = (1.0, 1.0)
+        self.max_x[:] = (20.0, 10.0)
         self.dx = 0.2
         self.h_fac = 1.3
         self.h = self.dx*self.h_fac
@@ -49,7 +50,7 @@ class SPH_main(object):
 
         while x[0] <= xmax[0]:
             x[1] = xmin[1]
-            while x[1] <= xmax[1]:
+            while x[1] <=xmax[1]:
                 particle = SPH_particle(main_data=self, x=x)
                 particle.calc_index()
                 self.particle_list.append(particle)
@@ -136,4 +137,12 @@ a = domain.output_particle()
 
 fig = plt.figure(figsize=(8, 6))
 ax1 = fig.add_subplot(111)
-ax1.plot(a[0], a[1], '.')
+ax1.plot(a[0], a[1], '.', )
+ax1.set_xlim(-1, 21)
+ax1.set_ylim(-1, 11)
+
+"""
+fig = plt.figure()
+ax1 = fig.add_subplot(1,1,1)
+line, = ax1.plot([], [], lw=2)
+"""
