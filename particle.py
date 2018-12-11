@@ -63,3 +63,13 @@ class Particle(object):
     def m(self, m):
         self.m = m
 
+    def list_attributes(self):
+        x_s = "position: " + self.x
+        v_s = "velocity: " + self.v
+        a_s = "acceleration: " + self.a
+        D_s = "derivative of density: " + self.D
+        rho_s = "density: " + self.rho
+        m_s = "mass: " + self.m
+        P_s = "pressure: " + self.P
+        return [x_s + v_s + a_s + D_s + rho_s + m_s + P_s]
+
