@@ -1,8 +1,6 @@
 """SPH class to find nearest neighbours..."""
-
-from itertools import count
-
 import numpy as np
+import particle as particleClass
 
 
 class SPH_main(object):
@@ -33,7 +31,10 @@ class SPH_main(object):
         self.c0 = 20  # m s ^-1
         self.gamma = 7
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(20, 10), dx=0.02, h_fac=1.3, t0=0.0, t_max=0.3):
+        # For predictor-corrector scheme
+        self.C_CFL = 0.2
+
+    def set_values(self, min_x=(0.0, 0.0), max_x=(20, 10), dx=0.02, h_fac=1.3, t0=0.0, t_max=0.3, dt=0, C_CFL=0.2):
         """Set simulation parameters."""
 
         self.min_x[:] = min_x
@@ -42,9 +43,11 @@ class SPH_main(object):
         self.h_fac = h_fac
         self.h = self.dx * self.h_fac
 
-        self.dt = 0.1 * (self.h / self.c0)
+        self.dt = 0.1 * (self.h / self.c0) if dt == 0 else dt
         self.t0 = t0
         self.t_max = t_max
+
+        self.C_CFL = C_CFL
 
     def initialise_grid(self):
         """Initalise simulation grid."""
@@ -65,7 +68,8 @@ class SPH_main(object):
         inner_xmax = xmax - 2 * self.h  # Inner xmax is point 20,10
 
         # Add boundary particles
-        for i in np.arange(inner_xmin[0] - 3*self.dx, inner_xmax[0] + 3*self.dx, self.dx):  # Maybe change to 2*dx for 3 boundary points
+        # Maybe change to 2*dx for 3 boundary points
+        for i in np.arange(inner_xmin[0] - 3*self.dx, inner_xmax[0] + 3*self.dx, self.dx):
             for j in np.arange(inner_xmin[1] - 3*self.dx, inner_xmax[1] + 3*self.dx, self.dx):
                 if not inner_xmin[0] < i < inner_xmax[0] or not inner_xmin[1] < j < inner_xmax[1]:
                     x = np.array([i, j])
@@ -96,6 +100,8 @@ class SPH_main(object):
                 self.search_grid[i, j] = []
 
         for cnt in self.particle_list:
+            # Set the particle bucket index
+            cnt.calc_index()
             # Keep in mind, list_num is bucket coordinates
             self.search_grid[cnt.list_num[0], cnt.list_num[1]].append(cnt)
             print(cnt.list_num[0], cnt.list_num[1])
@@ -166,31 +172,50 @@ class SPH_main(object):
             D += nei.m * np.dot(self.diff_W() * v, e)
         return a, D
 
-    def forward_euler(self, part, t0, t_max, neis=[], smooth_t=10):
+    def forward_euler(self, part, t0, t_max, neis, smooth_t=10):
         x_all = [part.x]
         v_all = [part.v]
         rho_all = [part.rho]
+        a_all = [part.a]
+        D_all = [part.D]
         t_all = [t0]
         x = part.x
         v = part.v
         rho = part.rho
         t = t0
         while t < t_max:
+            # Allocate grid points
+            self.allocate_to_grid()
+
+            # Calculate a and D at time t
+            part.set_v(v)
+            part.set_x(x)
+            a, D = self.navier_cont(part, neis)
+
+            # Forward time step update
             x = x + self.dt * v
-            v = v + self.dt * part.a
-            rho = rho + self.dt * part.D
+            v = v + self.dt * a
+            rho = rho + self.dt * D
+
+            # Smooth after some time steps
             if t == t0 + smooth_t * self.dt:
                 rho = self.smooth(part, neis)
             t = t + self.dt
+
+            # If it is a boundary particle, then
             if part.boundary:
                 x = 0
                 v = 0
+
+            # Append variables to the lists
             x_all.append(x)
             v_all.append(v)
             rho_all.append(rho)
+            a_all.append(a)
+            D_all.append(D)
             t_all.append(t)
 
-        return t, x, v, rho
+        return t_all, x_all, v_all, rho_all, a_all, D_all
 
     def W(self, particle, other_particle):
         """
@@ -221,10 +246,98 @@ class SPH_main(object):
             denum += (w / nei.rho)
         return num / denum
 
+    def var_dt(self, part, neis):
+        dt_cfl = np.inf
+        dt_f = np.inf
+        dt_A = np.inf
+        for nei in neis:
+            v = part.v - nei.v
+            v_abs = np.sqrt(np.sum(v ** 2))
+            ans1 = self.h / v_abs
+            if ans1 < dt_cfl:
+                dt_cfl = ans1
+
+            a = part.a - nei.a
+            a_abs = np.sqrt(np.sum(a ** 2))
+            ans2 = np.sqrt(self.h / a_abs)
+            if ans2 < dt_f:
+                dt_f = ans2
+
+            denum = self.c0 * np.sqrt((part.rho / self.rho0) ** (self.gamma - 1))
+            ans3 = self.h / denum
+            if ans3 < dt_A:
+                dt_A = ans3
+
+            return self.C_CFL * np.min(dt_cfl, dt_f, dt_A)
+
+    def predictor_corrector(self, part, t0, t_max, neis, smooth_t=10):
+        x_all = [part.x]
+        v_all = [part.v]
+        rho_all = [part.rho]
+        a_all = [part.a]
+        D_all = [part.D]
+        t_all = [t0]
+        x = part.x
+        v = part.v
+        rho = part.rho
+        t = t0
+        while t < t_max:
+            # Allocate grid points
+            self.allocate_to_grid()
+
+            # Calculate a and D at time t
+            part.set_v(v)
+            part.set_x(x)
+            part.set_rho(rho)
+            a, D = self.navier_cont(part, neis)
+
+            # Half-step
+            x_h = x + 0.5 * self.var_dt(part, neis) * v
+            v_h = v * 0.5 * self.var_dt(part, neis) * a
+            rho_h = rho + 0.5 * self.var_dt(part, neis) * D
+
+            # Calculate a and D at time t + 1/2
+            part.set_v(v_h)
+            part.set_x(x_h)
+            part.set_rho(rho_h)
+            a_h, D_h = self.navier_cont(part, neis)
+
+            # Full-step part 1
+            x_ = x + 0.5 * self.var_dt(part, neis) * v_h
+            v_ = v + 0.5 * self.var_dt(part, neis) * a_h
+            rho_ = rho + 0.5 * self.var_dt(part, neis) * D_h
+
+            # Full-step part 2
+            x = 2 * x_ - x
+            v = 2 * v_ - v
+            rho = 2 * rho_ - rho
+
+            # Smooth after some time steps
+            if t == t0 + smooth_t * self.var_dt(part, neis):
+                rho = self.smooth(part, neis)
+            t = t + self.dt
+
+            # Set for boundaries
+            if part.boundary:
+                x = 0
+                v = 0
+
+            # Append variables to the lists
+            x_all.append(x)
+            v_all.append(v)
+            rho_all.append(rho)
+            a_all.append(a)
+            D_all.append(D)
+            t_all.append(t)
+
+        return t_all, x_all, v_all, rho_all, a_all, D_all
+
+
     def simulate(self):
         # We are returning a list of particles per time step in a list of lists
 
         particles_times = []
+        time_array = []
         for particle in self.particle_list:
             # Get neighbours of particle
             neighbours = self.neighbour_iterate(particle)
@@ -234,64 +347,26 @@ class SPH_main(object):
             particle.a = a
             particle.D = D
             # Forward euler step in time
-            t_all, x_all, v_all, rho_all = self.forward_euler(particle, self.t0, self.t_max, neis=neighbours)
+            t_all, x_all, v_all, rho_all, a_all, D_all = self.forward_euler(particle, self.t0, self.t_max, neighbours)
+            time_array = t_all.copy()
 
             particles = [None] * len(t_all)
             for i in range(len(t_all)):
+                # Update the particle attributes
                 particle.x = x_all[i]
                 particle.v = v_all[i]
                 particle.rho = rho_all[i]
-                particle.update_P()
-                particle.calc_index()
+                particle.a = a_all[i]
+                particle.D = D_all[i]
 
                 particles.append(particle)
             particles_times.append(particles)
 
+        # List of particles in each time step
         result = np.array(particles_times).T.tolist()
 
-        return result
-
-
-
-
-
-
-
-
-class SPH_particle(object):
-    """Object containing all the properties for a single particle"""
-
-    _ids = count(0)
-
-    def __init__(self, main_data=None, x=np.zeros(2)):
-        self.id = next(self._ids)
-        self.main_data = main_data
-        self.x = np.array(x)
-        self.v = np.zeros(2)
-        self.a = np.zeros(2)
-        self.D = 0
-        self.rho = 0.0
-        self.P = 0.0
-        self.m = main_data.dx ** 2 * main_data.rho0  # initial mass depends on the initial particle spacing
-        self.boundary = False  # Particle by default is not on the boundary
-
-    def calc_index(self):
-        """Calculates the 2D integer index for the particle's location in the search grid"""
-        # Calculates the bucket coordinates
-        self.list_num = np.array((self.x - self.main_data.min_x) /
-                                 (2.0 * self.main_data.h), int)
-
-    def B(self):
-        return (self.main_data.rho0 * self.main_data.c0 ** 2) / self.main_data.gamma
-
-    def update_P(self):
-        """
-        Equation of state
-        System is assumed slightly compressible
-        """
-        rho0 = self.main_data.rho0
-        gamma = self.main_data.gamma
-        self.P = self.B() * ((self.rho / rho0) ** gamma - 1)
+        # Return particles and time steps
+        return result, time_array
 
 
 """Create a single object of the main SPH type"""
