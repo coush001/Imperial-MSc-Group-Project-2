@@ -421,6 +421,3 @@ print("allocated to grid")
 domain.t_max = 2
 particles, times = domain.simulate(domain.dt, domain.forward_euler)
 
-
-import matplotlib.pyplot as plt
-plt.scatter(particles)
