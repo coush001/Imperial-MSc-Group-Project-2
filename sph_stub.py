@@ -126,29 +126,18 @@ class SPH_main(object):
         dist = np.sqrt(np.sum(dn ** 2))  # dist is |r_ij| (scalar)
         q = dist / self.h
         dw = 0
+        c = 10 / (7 * np.pi * self.h ** 3)
         if 0 <= q <= 1:
-            dw = (10 / (7 * np.pi * self.h ** 2)) * ((-2 * dist)/self.h**2 + (9/4) * dist**2 / self.h**3)
+            dw = -3*q + (9 / 4) * q ** 2
         if 1 <= q <= 2:
-            dw = (10 / (7 * np.pi * self.h ** 2)) \
-                 * 1/4 * (-3 * dist**2 / self.h**3 + 12 * dist/self.h**2 - 12/self.h**3)
-        if 2 < q:
-            dw = 0
-        return dw
+            dw = - 0.75 * (2 - q)**2
+        return c * dw
 
     def grad_W(self, part, other_part):
         dn = part.x - other_part.x  # dn is r_ij (vector)
         dist = np.sqrt(np.sum(dn ** 2))  # dist is |r_ij| (scalar)
         e_ij = dn / dist
-        q = dist / self.h
-        dw = 0
-
-        if 0 <= q <= 1:
-            dw = (10 / (7 * np.pi * self.h ** 2)) * ((-2 * dist)/self.h**2 + (9/4) * dist**2 / self.h**3)
-        if 1 <= q <= 2:
-            dw = (10 / (7 * np.pi * self.h ** 2)) \
-                 * 1/4 * (-3 * dist**2 / self.h**3 + 12 * dist/self.h**2 - 12/self.h**3)
-        if 2 < q:
-            dw = 0
+        dw = self.diff_W(part, other_part)
         return dw * e_ij
 
     def navier_cont(self, part, neighbours):
@@ -173,14 +162,9 @@ class SPH_main(object):
 
     def forward_euler(self, particles, t, dt, smooth=False):
         updated_particles = []
-        print(len(particles))
-        count = 0
         for part in particles:
-            print("count particle", count)
             # Get neighbours of each particle
             neis = self.neighbour_iterate(part)
-            print("THIS PARTICLE IS DONE")
-            count += 1
 
             x = part.x
             v = part.v
@@ -198,21 +182,16 @@ class SPH_main(object):
 
             # If it is a boundary particle, then
             if part.boundary:
-                print("ÏF YOU ARE HERE, YOU ARE A BOUNDARY")
-                v = 0
+                v = np.zeros(2)
 
             # Calculate a and D at time t
-            if count == 300:
-                print("velocitty", v)
             a, D = self.navier_cont(part, neis)
-            if count == 300:
-                print("v, a, D", v, a, D)
 
             # Set new attributes
             part.set_v(v)
             part.set_x(x)
             part.set_rho(rho)
-            part.set_v(a)
+            part.set_a(a)
             part.set_D(D)
 
             # Allocate grid points
@@ -345,28 +324,12 @@ class SPH_main(object):
         particles_times = []
         time_array = [t]
         particles = self.particle_list
-        print("initialise")
-        print("random particle")
-        print("acc", particles[300].a)
-        print("vel", particles[300].v)
-        print("rho", particles[300].rho)
-        print("D", particles[300].D)
-        print("x", particles[300].x)
-        print("boundary", particles[300].boundary)
         while t < self.t_max:
-            print("current time", t)
             smooth = False
             # Smooth after some time steps
             if t == self.t0 + smooth_t * dt:
                 smooth = True
             particles = self.forward_euler(particles, t, dt, smooth=smooth)
-            print("random particle")
-            print("acc", particles[300].a)
-            print("vel", particles[300].v)
-            print("rho", particles[300].rho)
-            print("D", particles[300].D)
-            print("x", particles[300].x)
-            print("boundary", particles[300].boundary)
 
             t = t + dt
             time_array.append(t)
