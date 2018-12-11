@@ -388,5 +388,3 @@ print("allocated to grid")
 """This example is only finding the neighbours for a single partle - this will need to be inside the simulation loop and will need to be called for every particle"""
 # domain.neighbour_iterate(domain.particle_list[100])
 domain.t_max = 0.01
-domain.simulate(domain.dt, domain.forward_euler)
-
