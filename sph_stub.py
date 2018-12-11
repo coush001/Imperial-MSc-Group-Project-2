@@ -34,7 +34,7 @@ class SPH_main(object):
         # For predictor-corrector scheme
         self.C_CFL = 0.2
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(20, 10), dx=0.2, h_fac=1.3, t0=0.0, t_max=0.001, dt=0, C_CFL=0.2):
+    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 5), dx=1, h_fac=1.3, t0=0.0, t_max=2, dt=0, C_CFL=0.2):
         """Set simulation parameters."""
 
         self.min_x[:] = min_x
@@ -356,7 +356,6 @@ class SPH_main(object):
             if t == self.t0 + smooth_t * dt:
                 smooth = True
             particles = scheme(particles, t, dt, smooth=smooth)
-            print(particles[1200].list_attributes())
 
             t = t + dt
             time_array.append(t)
