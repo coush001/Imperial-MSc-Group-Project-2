@@ -4,6 +4,7 @@ from itertools import count
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import animation
+import csv
 
 
 class SPH_main(object):
@@ -222,6 +223,13 @@ class SPH_main(object):
                 x_value.append(part.x[0])
                 y_value.append(part.x[1])
         return [x_value, y_value, x_value_bound, y_value_bound]
+    
+    def write_to_file(self):
+        with open('some.csv', 'wb') as f:
+            writer = csv.writer(f)
+            for part in self.particle_list:
+                writer.writerow(str(part.x[0]))
+            
 
 
 class SPH_particle(object):
@@ -285,7 +293,7 @@ ax1.plot(a[0], a[1], 'r.', )
 ax1.plot(a[2], a[3], 'b.', )
 # ax1.set_xlim(-1, 21)
 # ax1.set_ylim(-1, 11)
-
+domain.write_to_file()
 """
 fig = plt.figure()
 ax1 = fig.add_subplot(1,1,1)
