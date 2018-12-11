@@ -65,10 +65,9 @@ class SPH_main(object):
         inner_xmax = xmax - 2 * self.h
 
         # Add boundary particles
-        for i in np.arange(inner_xmin[0] - 3*self.dx, inner_xmax[0] + 3*self.dx, self.dx): #Maybe change to 2*dx for 3 boudary points
+        for i in np.arange(inner_xmin[0] - 3*self.dx, inner_xmax[0] + 3*self.dx, self.dx):  # Maybe change to 2*dx for 3 boundary points
             for j in np.arange(inner_xmin[1] - 3*self.dx, inner_xmax[1] + 3*self.dx, self.dx):
-                if not inner_xmin[0] < i < inner_xmax[0] and not inner_xmax[1] < j < self.max_x[1]:
-                    print(i, j)
+                if not inner_xmin[0] < i < inner_xmax[0] and not inner_xmin[1] < j < inner_xmax[1]:
                     x = np.array([i, j])
                     particle = SPH_particle(self, x)
                     particle.calc_index()
