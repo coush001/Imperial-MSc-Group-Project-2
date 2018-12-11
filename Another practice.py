@@ -225,10 +225,17 @@ class SPH_main(object):
         return [x_value, y_value, x_value_bound, y_value_bound]
     
     def write_to_file(self):
-        with open('some.csv', 'wb') as f:
-            writer = csv.writer(f)
+        with open('data.csv', 'w') as csvfile:
+            fieldnames = ['X', 'Y', 'Boundary','Pressure','Velocity_X', 'Velocity_Y']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
             for part in self.particle_list:
-                writer.writerow(str(part.x[0]))
+                 writer.writerow({'X': str(part.x[0]),
+                                  'Y': str(part.x[1]),
+                                  'Boundary': str(part.boundary),
+                                  'Pressure': str(part.P),
+                                  'Velocity_X': str(part.v[0]),
+                                  'Velocity_Y': str(part.v[1])})
             
 
 
