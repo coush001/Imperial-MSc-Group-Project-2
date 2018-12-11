@@ -11,6 +11,7 @@ import vtk
 class vtkTimerCallback():
    def __init__(self):
        self.timer_count = 0
+
    def execute(self,obj,event):
        print(self.timer_count)
        self.actor.SetPosition(self.timer_count, self.timer_count,0);
