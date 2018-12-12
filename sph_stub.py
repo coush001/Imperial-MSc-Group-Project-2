@@ -406,8 +406,8 @@ class SPH_main(object):
                 smooth = True
             parts = copy.deepcopy(scheme(parts, t, dt, smooth=smooth))
 
-            print(parts[30].list_attributes())
-            print("Time", t)
+            #print(parts[30].list_attributes())
+            #print("Time", t)
             t = t + dt
             time_array.append(t)
             particles_times.append(parts)
