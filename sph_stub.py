@@ -3,6 +3,7 @@ import numpy as np
 import particle as particleClass
 import copy
 import pickle
+import csv
 
 class SPH_main(object):
     """Primary SPH object"""
@@ -28,14 +29,14 @@ class SPH_main(object):
         # Physical properties
         self.mu = 0.001  # in Pa s
         self.rho0 = 1000  # kg / m^3
-        self.g = 9.81  # m^2 s^-2
+        self.g = np.array([0.0, -9.81])  # m^2 s^-2
         self.c0 = 20  # m s ^-1
         self.gamma = 7
 
         # For predictor-corrector scheme
         self.C_CFL = 0.2
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 5), dx=1, h_fac=1.3, t0=0.0, t_max=2, dt=0, C_CFL=0.2):
+    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 5), dx=0.4, h_fac=1.3, t0=0.0, t_max=0.5, dt=0, C_CFL=0.2):
         """Set simulation parameters."""
 
         self.min_x[:] = min_x
@@ -69,8 +70,8 @@ class SPH_main(object):
 
         # Add boundary particles
         # Maybe change to 2*dx for 3 boundary points
-        for i in np.arange(inner_xmin[0] - 3*self.dx, inner_xmax[0] + 3*self.dx, self.dx):
-            for j in np.arange(inner_xmin[1] - 3*self.dx, inner_xmax[1] + 3*self.dx, self.dx):
+        for i in np.arange(inner_xmin[0] - 2*self.dx, inner_xmax[0] + 3*self.dx, self.dx):
+            for j in np.arange(inner_xmin[1] - 2*self.dx, inner_xmax[1] + 3*self.dx, self.dx):
                 if not inner_xmin[0] < i < inner_xmax[0] or not inner_xmin[1] < j < inner_xmax[1]:
                     x = np.array([i, j])
                     particle = particleClass.Particle(self, x)
@@ -140,8 +141,6 @@ class SPH_main(object):
     def grad_W(self, part, other_part):
         dn = part.x - other_part.x  # dn is r_ij (vector)
         dist = np.sqrt(np.sum(dn ** 2))  # dist is |r_ij| (scalar)
-        #print("dn and dist", dn, dist)
-        #print("parts id", part.id, other_part.id)
         e_ij = dn / dist
         dw = self.diff_W(part, other_part)
         return dw * e_ij
@@ -158,19 +157,26 @@ class SPH_main(object):
             r = part.x - nei.x
             dist = np.sqrt(np.sum(r ** 2))
 
+            # Calculate the difference of velocity
+            v = part.v - nei.v
+            v_mod = np.sqrt(np.sum(v ** 2))
+
             if not part.boundary and nei.boundary:
                 # Repulsive force calculation from paper
                 #  http://www.wseas.us/e-library/conferences/2011/Corfu/CUTAFLUP/CUTAFLUP-15.pdf
                 k = 0.01 * part.B() * self.gamma / self.rho0
-                rf = k * self.repulsive_force_psi(part, nei) * (r / (dist ** 2))
-                #print("repulsive force", rf)
+                rf = k * self.repulsive_force_psi(part, nei, shao=True) * (r / (dist ** 2))
+                # if rf[0] < 0:
+                #     rf[0] = -rf[0]
+                # if rf[1] < 0:
+                #     rf[1] = -rf[1]
+                # print("repulsive force", rf)
 
-            # Calculate the difference of velocity
-            v = part.v - nei.v
+
             # Calculate acceleration of particle
             a += -(nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * self.grad_W(part, nei)) + \
                  self.mu * (nei.m * ((1 / part.rho ** 2) + (1 / nei.rho ** 2)) * self.diff_W(part, nei) * (v / dist)) \
-                 + self.g + rf
+                 + self.g + np.abs(part.v[1] / 2)*rf
 
             # normal
             e = r / dist
@@ -178,17 +184,30 @@ class SPH_main(object):
             D += nei.m * np.dot(self.diff_W(part, nei) * v, e)
         return a, D
 
-    def repulsive_force_psi(self, part, other_part, kj=0.5):
+
+    def repulsive_force_psi(self, part, other_part, kj=2, shao=False):
+        kj += self.dx
         psi = 0
         r = part.x - other_part.x
         dist = np.sqrt(np.sum(r ** 2))
         q = dist / self.h
-        if 0 <= q <= kj:
+        if shao:
+            psi = self.f(q)
+        elif 0 <= q <= kj:
             num = np.exp(-3*q**2) - np.exp(-3*kj**2)
             denum = 1 - np.exp(-3*kj**2)
             psi = num / denum
         return psi
 
+    def f(self, q):
+        f = 0
+        if 0 <= q <= (2/3):
+            f = 2 / 3
+        if (2 / 3) < q <= 1:
+            f = (2*q - 1.5*q**2)
+        if 1 < q <= 2:
+            f = 0.5*(2-q)**2
+        return 10*f
 
     def forward_euler(self, particles, t, dt, smooth=False):
         updated_particles = []
@@ -386,18 +405,44 @@ class SPH_main(object):
             if t == self.t0 + smooth_t * dt:
                 smooth = True
             parts = copy.deepcopy(scheme(parts, t, dt, smooth=smooth))
-            #print(parts[30].list_attributes())
 
+            print(parts[30].list_attributes())
+            print("Time", t)
             t = t + dt
             time_array.append(t)
             particles_times.append(parts)
 
-        #particles_times = np.array(particles_times)
 
 
         # Return particles and time steps
         return particles_times, time_array
 
+    def output_particle(self):
+        x_value_bound = []
+        y_value_bound = []
+        x_value = []
+        y_value = []
+        for part in self.particle_list:
+            if part.boundary:
+                x_value_bound.append(part.x[0])
+                y_value_bound.append(part.x[1])
+            else:
+                x_value.append(part.x[0])
+                y_value.append(part.x[1])
+        return [x_value, y_value, x_value_bound, y_value_bound]
+
+    def write_to_file(self):
+        with open('data.csv', 'w') as csvfile:
+            fieldnames = ['X', 'Y', 'Boundary', 'Pressure', 'Velocity_X', 'Velocity_Y']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for part in self.particle_list:
+                writer.writerow({'X': str(part.x[0]),
+                                 'Y': str(part.x[1]),
+                                 'Boundary': str(part.boundary),
+                                 'Pressure': str(part.P),
+                                 'Velocity_X': str(part.v[0]),
+                                 'Velocity_Y': str(part.v[1])})
 
 """Create a single object of the main SPH type"""
 domain = SPH_main()
@@ -446,60 +491,3 @@ output_file(particles, times)
 particles, times = load_file(particles, times)
 print(particles)
 print(times)
-
-#def save_csv(name, t, x, y, bound):
-#    """
-#    Write out a csv file, delimited with comma (,)
-#
-#    Parameters
-#    ----------
-#
-#    name: output filename
-#    state: state of the particle
-#           (coordinate, velocity, acceleration, D, density, pressure, mass
-#           ie. now it only contains coordinate)
-#    kinetic: kinetic energy loss at a point
-#    time: timestamp
-#
-#    """
-#    header = ("t, X, Y, bound")
-#
-#    data = np.hstack((np.reshape(t, (len(t), 1)), np.reshape(x, (len(x), 1)), 
-#                      np.reshape(y, (len(y), 1)), np.reshape(bound, (len(bound), 1))))
-#    loc = path.join('data', name)
-#    np.savetxt(loc+".csv", data, delimiter=",", fmt='%s', header=header)
-#
-#
-#a = particles[0][0].x[0]
-#b = particles[0][0].x[1]
-#bound = particles[0][0].boundary
-#print(a)
-#print(b)
-#print(bound)
-#save_csv("particle", times, a, b, bound)
-#
-#
-#def load_csv(filename):
-#    """
-#    Load the state data from csv file
-#
-#    Parameters
-#    ----------
-#    filename : the filename of csv data file
-#
-#    Returns
-#    -------
-#    Array of the x and y
-#    ie. This is just a simple version
-#    we can also load other state data after we finish the main function
-#    """
-#    loc = path.join('data', filename)
-#    assert(path.exists(loc))
-#    assert(path.isfile(loc))
-#    data = np.loadtxt(loc, dtype=float, delimiter=',',
-#                      comments='#', skiprows=1)
-#    return data[:, 0], data[:, 1], data[:, 2], data[:, 3]
-#
-#
-#coordinate = 'particle.csv'
-#x_load, y_load, bound = load_csv(coordinate)
