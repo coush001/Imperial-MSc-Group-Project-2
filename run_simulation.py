@@ -16,5 +16,6 @@ domain.allocate_to_grid()
 print("Done before simulation")
 partcle, timelist = domain.simulate(10)
 print("Done simulation")
-domain.save_file(partcle, timelist)
+
+domain.save_file(partcle, timelist, openfile=True)  # if want to save file, set true here, if not, set false
 print("Done savefile")
