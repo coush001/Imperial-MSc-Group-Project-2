@@ -73,4 +73,3 @@ class Particle(object):
         P_s = "pressure: " + str(self.P) + ", "
         boundary_s = "is boundary: " + str(self.boundary)
         return [x_s + v_s + a_s + D_s + rho_s + m_s + P_s + boundary_s]
-
