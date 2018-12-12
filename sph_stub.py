@@ -2,6 +2,7 @@
 import numpy as np
 import particle as particleClass
 import copy
+import pickle
 import csv
 
 class SPH_main(object):
@@ -137,8 +138,6 @@ class SPH_main(object):
     def grad_W(self, part, other_part):
         dn = part.x - other_part.x  # dn is r_ij (vector)
         dist = np.sqrt(np.sum(dn ** 2))  # dist is |r_ij| (scalar)
-        # print("dn and dist", dn, dist)
-        # print("parts id", part.id, other_part.id)
         e_ij = dn / dist
         dw = self.diff_W(part, other_part)
         return dw * e_ij
@@ -414,5 +413,3 @@ class SPH_main(object):
                                  'Pressure': str(part.P),
                                  'Velocity_X': str(part.v[0]),
                                  'Velocity_Y': str(part.v[1])})
-
-
