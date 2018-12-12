@@ -2,6 +2,9 @@
 import numpy as np
 import particle as particleClass
 import csv
+import pickle
+import copy
+
 
 class SPH_main(object):
     """Primary SPH object"""
@@ -367,9 +370,10 @@ class SPH_main(object):
             t = t + self.dt
             # save file every n dt
             if cnt % n == 0:
-                p_list.append(particle_list)
+                p_list.append(copy.deepcopy(self.particle_list))
                 t_list.append(t)
             time_array.append(t)
+        return p_list, t_list
 
     def save_file(self, p_list, t_lsit):
         fw = open('dataFile.txt', 'wb')
@@ -380,7 +384,7 @@ class SPH_main(object):
         fw.close()
 
 
-    def load_file(self, p_list, t_lsit):
+    def load_file(self):
         fr = open('dataFile.txt', 'rb')
         # load particles data
         p_list = pickle.load(fr)
