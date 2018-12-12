@@ -2,6 +2,9 @@
 import numpy as np
 import particle as particleClass
 import csv
+import pickle
+import copy
+
 
 class SPH_main(object):
     """Primary SPH object"""
@@ -398,9 +401,10 @@ class SPH_main(object):
 
         return updated_particles
 
-    def simulate(self):
+    def simulate(self, n):
         """
         :param self:
+        :param n: save file every n dt
         :param dt:
         :param scheme: This is a time-stepping scheme - can either be forward euler or predictor corrector method
         :param smooth_t:
@@ -411,6 +415,9 @@ class SPH_main(object):
         time_array = [t]
         self.allocate_to_grid()
         cnt = 0
+        p0 = self.particle_list
+        p_list = [p0]
+        t_list = [t]
         while t < self.t_max:
             cnt = cnt + 1
             smooth = False
@@ -419,7 +426,30 @@ class SPH_main(object):
                 smooth = True
             self.forward_euler(self.particle_list, smooth=smooth)
             t = t + self.dt
+            # save file every n dt
+            if cnt % n == 0:
+                p_list.append(copy.deepcopy(self.particle_list))
+                t_list.append(t)
             time_array.append(t)
+        return p_list, t_list
+
+    def save_file(self, p_list, t_lsit):
+        fw = open('dataFile.txt', 'wb')
+        # Pickle the list using the highest protocol available.
+        pickle.dump(p_list, fw, -1)
+        # Pickle dictionary using protocol 0.
+        pickle.dump(t_lsit, fw)
+        fw.close()
+
+
+    def load_file(self):
+        fr = open('dataFile.txt', 'rb')
+        # load particles data
+        p_list = pickle.load(fr)
+        # load times data
+        t_lsit = pickle.load(fr)
+        fr.close()
+        return p_list, t_lsit
 
     def write_to_file(self):
         with open('data.csv', 'w') as csvfile:
