@@ -19,3 +19,12 @@ def test_density_does_not_change_much():  # Check no density exceeds 1.5 * initi
     densities = np.array([particle.rho for particle in domain.particle_list])
     factor = max(densities) / domain.rho0
     assert(factor < 1.5)
+
+
+def test_particles_dont_leak():
+    locations = np.array([particle.x for particle in domain.particle_list])
+    assert(max(locations[:, 0]) <= domain.max_x[0])
+    assert(max(locations[:, 1]) <= domain.max_x[1])
+    assert(min(locations[:, 0]) >= domain.max_x[0])
+    assert(min(locations[:, 1]) >= domain.min_x[1])
+
