@@ -50,12 +50,16 @@ time_text = ax1.text(0.7, 0.8, '', transform=ax1.transAxes)
 def animate(i):
     pre = (np.array(pressure[i])-min(pressure[i]))/(max(pressure[i])-min(pressure[i]))
     color = []
+    colorbound = []
     for j in range(len(pre)):
-        color.append([0.5*pre[j]+0.2, 0.5*pre[j]+0.2, 0.5*pre[j]+0.5])
+        color.append([pre[j], 0.6, 1-pre[j]])
+    for j in range(len(x_boundary[i])):
+        colorbound.append([0, 0, 0])
     color = np.array(color)
     moving_part.set_color(color)
     moving_part.set_offsets(x_data[i])
     boundary.set_offsets(x_boundary[i])
+    boundary.set_color(colorbound)
     time_text.set_text('time = {0:.3f}'.format(i*t_lsit[1]))
     return moving_part, time_text
 
