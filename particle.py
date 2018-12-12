@@ -15,7 +15,7 @@ class Particle(object):
         self.a = np.zeros(2)
         self.D = 0
         self.rho = main_data.rho0
-        self.P = main_data.rho0
+        self.P = 0
         self.m = main_data.dx ** 2 * main_data.rho0  # initial mass depends on the initial particle spacing
         self.boundary = False  # Particle by default is not on the boundary
 
