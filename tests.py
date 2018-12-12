@@ -10,6 +10,11 @@ domain.place_points()
 domain.simulate()
 
 
+def test_mass_not_zero():
+    mass = np.array([particle.m for particle in domain.particle_list])
+    assert(max(mass) > 0)
+
+
 def test_velocity_is_less_than_c0():  # Check no particle exceeds speed of sound
     velocities = np.array([particle.v for particle in domain.particle_list])
     assert(np.all(velocities < domain.c0))
