@@ -35,7 +35,7 @@ class SPH_main(object):
         # For predictor-corrector scheme
         self.C_CFL = 0.2
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 5), dx=0.4, h_fac=1.3, t0=0.0, t_max=0.3, dt=0, C_CFL=0.2):
+    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 5), dx=0.4, h_fac=1.3, t0=0.0, t_max=0.5, dt=0, C_CFL=0.2):
         """Set simulation parameters."""
 
         self.min_x[:] = min_x
@@ -158,19 +158,26 @@ class SPH_main(object):
             r = part.x - nei.x
             dist = np.sqrt(np.sum(r ** 2))
 
+            # Calculate the difference of velocity
+            v = part.v - nei.v
+            v_mod = np.sqrt(np.sum(v ** 2))
+
             if not part.boundary and nei.boundary:
                 # Repulsive force calculation from paper
                 #  http://www.wseas.us/e-library/conferences/2011/Corfu/CUTAFLUP/CUTAFLUP-15.pdf
                 k = 0.01 * part.B() * self.gamma / self.rho0
                 rf = k * self.repulsive_force_psi(part, nei, shao=True) * (r / (dist ** 2))
-                print("repulsive force", rf)
+                # if rf[0] < 0:
+                #     rf[0] = -rf[0]
+                # if rf[1] < 0:
+                #     rf[1] = -rf[1]
+                # print("repulsive force", rf)
 
-            # Calculate the difference of velocity
-            v = part.v - nei.v
+
             # Calculate acceleration of particle
             a += -(nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * self.grad_W(part, nei)) + \
                  self.mu * (nei.m * ((1 / part.rho ** 2) + (1 / nei.rho ** 2)) * self.diff_W(part, nei) * (v / dist)) \
-                 + self.g + rf
+                 + self.g + np.abs(part.v[1] / 2)*rf
 
             # normal
             e = r / dist
@@ -179,6 +186,7 @@ class SPH_main(object):
         return a, D
 
     def repulsive_force_psi(self, part, other_part, kj=2, shao=False):
+        kj += self.dx
         psi = 0
         r = part.x - other_part.x
         dist = np.sqrt(np.sum(r ** 2))
@@ -199,7 +207,7 @@ class SPH_main(object):
             f = (2*q - 1.5*q**2)
         if 1 < q <= 2:
             f = 0.5*(2-q)**2
-        return f
+        return 10*f
 
     def forward_euler(self, particles, t, dt, smooth=False):
         updated_particles = []
