@@ -28,14 +28,14 @@ class SPH_main(object):
         # Physical properties
         self.mu = 0.001  # in Pa s
         self.rho0 = 1000  # kg / m^3
-        self.g = np.array([0.0, 9.81])  # m^2 s^-2
+        self.g = np.array([0.0, -9.81])  # m^2 s^-2
         self.c0 = 20  # m s ^-1
         self.gamma = 7
 
         # For predictor-corrector scheme
         self.C_CFL = 0.2
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 5), dx=1, h_fac=1.3, t0=0.0, t_max=2, dt=0, C_CFL=0.2):
+    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 5), dx=0.4, h_fac=1.3, t0=0.0, t_max=0.3, dt=0, C_CFL=0.2):
         """Set simulation parameters."""
 
         self.min_x[:] = min_x
@@ -162,7 +162,7 @@ class SPH_main(object):
                 # Repulsive force calculation from paper
                 #  http://www.wseas.us/e-library/conferences/2011/Corfu/CUTAFLUP/CUTAFLUP-15.pdf
                 k = 0.01 * part.B() * self.gamma / self.rho0
-                rf = k * self.repulsive_force_psi(part, nei) * (r / (dist ** 2))
+                rf = k * self.repulsive_force_psi(part, nei, shao=True) * (r / (dist ** 2))
                 print("repulsive force", rf)
 
             # Calculate the difference of velocity
@@ -178,16 +178,28 @@ class SPH_main(object):
             D += nei.m * np.dot(self.diff_W(part, nei) * v, e)
         return a, D
 
-    def repulsive_force_psi(self, part, other_part, kj=0.5):
+    def repulsive_force_psi(self, part, other_part, kj=2, shao=False):
         psi = 0
         r = part.x - other_part.x
         dist = np.sqrt(np.sum(r ** 2))
         q = dist / self.h
-        if 0 <= q <= kj:
+        if shao:
+            psi = self.f(q)
+        elif 0 <= q <= kj:
             num = np.exp(-3*q**2) - np.exp(-3*kj**2)
             denum = 1 - np.exp(-3*kj**2)
             psi = num / denum
         return psi
+
+    def f(self, q):
+        f = 0
+        if 0 <= q <= (2/3):
+            f = 2 / 3
+        if (2 / 3) < q <= 1:
+            f = (2*q - 1.5*q**2)
+        if 1 < q <= 2:
+            f = 0.5*(2-q)**2
+        return f
 
     def forward_euler(self, particles, t, dt, smooth=False):
         updated_particles = []
@@ -386,7 +398,7 @@ class SPH_main(object):
                 smooth = True
             parts = copy.deepcopy(scheme(parts, t, dt, smooth=smooth))
             print(parts[30].list_attributes())
-
+            print("Time", t)
             t = t + dt
             time_array.append(t)
             particles_times.append(parts)
@@ -423,27 +435,4 @@ class SPH_main(object):
                                  'Velocity_X': str(part.v[0]),
                                  'Velocity_Y': str(part.v[1])})
 
-
-"""Create a single object of the main SPH type"""
-domain = SPH_main()
-
-"""Calls the function that sets the simulation parameters"""
-domain.set_values()
-"""Initialises the search grid"""
-domain.initialise_grid()
-print("initialised grid")
-
-
-"""Places particles in a grid over the entire domain - In your code you will need to place the fluid particles in only the appropriate locations"""
-domain.place_points(domain.min_x, domain.max_x)
-print("placed points")
-"""This is only for demonstration only - In your code these functions will need to be inside the simulation loop"""
-"""This function needs to be called at each time step (or twice a time step if a second order time-stepping scheme is used)"""
-domain.allocate_to_grid()
-print("allocated to grid")
-
-"""This example is only finding the neighbours for a single partle - this will need to be inside the simulation loop and will need to be called for every particle"""
-# domain.neighbour_iterate(domain.particle_list[100])
-domain.t_max = 2
-particles, times = domain.simulate(domain.dt, domain.forward_euler)
 
