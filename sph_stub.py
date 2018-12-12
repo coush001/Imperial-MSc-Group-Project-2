@@ -2,6 +2,7 @@
 import numpy as np
 import particle as particleClass
 import copy
+import pickle
 
 class SPH_main(object):
     """Primary SPH object"""
@@ -391,7 +392,7 @@ class SPH_main(object):
             time_array.append(t)
             particles_times.append(parts)
 
-        particles_times = np.array(particles_times)
+        #particles_times = np.array(particles_times)
 
 
         # Return particles and time steps
@@ -420,3 +421,85 @@ print("allocated to grid")
 # domain.neighbour_iterate(domain.particle_list[100])
 domain.t_max = 2
 particles, times = domain.simulate(domain.dt, domain.forward_euler)
+
+
+def output_file(particles, times):
+    fw = open('dataFile.txt', 'wb')
+    # Pickle the list using the highest protocol available.
+    pickle.dump(particles, fw, -1)
+    # Pickle dictionary using protocol 0.
+    pickle.dump(times, fw)
+    fw.close()
+
+
+def load_file(particles, times):
+    fr = open('dataFile.txt', 'rb')
+    # load particles data  
+    particles = pickle.load(fr)
+    # load times data
+    times = pickle.load(fr)
+    fr.close()
+    return particles, times
+
+
+output_file(particles, times)
+particles, times = load_file(particles, times)
+print(particles)
+print(times)
+
+#def save_csv(name, t, x, y, bound):
+#    """
+#    Write out a csv file, delimited with comma (,)
+#
+#    Parameters
+#    ----------
+#
+#    name: output filename
+#    state: state of the particle
+#           (coordinate, velocity, acceleration, D, density, pressure, mass
+#           ie. now it only contains coordinate)
+#    kinetic: kinetic energy loss at a point
+#    time: timestamp
+#
+#    """
+#    header = ("t, X, Y, bound")
+#
+#    data = np.hstack((np.reshape(t, (len(t), 1)), np.reshape(x, (len(x), 1)), 
+#                      np.reshape(y, (len(y), 1)), np.reshape(bound, (len(bound), 1))))
+#    loc = path.join('data', name)
+#    np.savetxt(loc+".csv", data, delimiter=",", fmt='%s', header=header)
+#
+#
+#a = particles[0][0].x[0]
+#b = particles[0][0].x[1]
+#bound = particles[0][0].boundary
+#print(a)
+#print(b)
+#print(bound)
+#save_csv("particle", times, a, b, bound)
+#
+#
+#def load_csv(filename):
+#    """
+#    Load the state data from csv file
+#
+#    Parameters
+#    ----------
+#    filename : the filename of csv data file
+#
+#    Returns
+#    -------
+#    Array of the x and y
+#    ie. This is just a simple version
+#    we can also load other state data after we finish the main function
+#    """
+#    loc = path.join('data', filename)
+#    assert(path.exists(loc))
+#    assert(path.isfile(loc))
+#    data = np.loadtxt(loc, dtype=float, delimiter=',',
+#                      comments='#', skiprows=1)
+#    return data[:, 0], data[:, 1], data[:, 2], data[:, 3]
+#
+#
+#coordinate = 'particle.csv'
+#x_load, y_load, bound = load_csv(coordinate)
