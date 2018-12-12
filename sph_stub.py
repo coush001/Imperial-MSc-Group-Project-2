@@ -34,6 +34,9 @@ class SPH_main(object):
         # For predictor-corrector scheme
         self.C_CFL = 0.2
 
+        # Stencil scheme
+        self.stencil = True
+
     def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=0.5, dt=0, C_CFL=0.2):
         """Set simulation parameters."""
 
@@ -59,6 +62,7 @@ class SPH_main(object):
         self.max_list = np.array((self.max_x - self.min_x) / (2.0 * self.h) + 1,
                                  int)
         self.search_grid = np.empty(self.max_list, object)
+        print('buckets X and Y', self.max_list)
 
     def place_points(self, xmin, xmax):
         """Place points in a rectangle with a square spacing of size dx"""
@@ -107,6 +111,24 @@ class SPH_main(object):
         """Find all the particles within 2h of the specified particle"""
         # save neighbours (particles j) of particles i
         neighbours = []
+
+        # This code only returns the neighbours for the stencil
+        if self.stencil:
+            i, j = part.list_num   # Bucket the particle is in
+            stenc = [[i, j], [i+1, j], [i+1, j+1], [i, j+1], [i-1, j+1]]  # Stencil shape
+            for bucket in stenc:
+                if 0 <= bucket[0] < self.max_list[0] and 0 <= bucket[1] < self.max_list[1]:
+                    print(bucket[1], self.max_list[1])
+
+                    for other_part in self.search_grid[bucket[0], bucket[1]]:
+                        if not part.id == other_part.id:
+                            dn = part.x - other_part.x
+                            dist = np.sqrt(np.sum(dn ** 2))
+                            if dist < 2.0 * self.h:
+                                neighbours.append(other_part)
+            return neighbours
+
+
         for i in range(max(0, part.list_num[0] - 1),
                        min(part.list_num[0] + 2, self.max_list[0])):
             for j in range(max(0, part.list_num[1] - 1),
@@ -117,6 +139,7 @@ class SPH_main(object):
                         dist = np.sqrt(np.sum(dn ** 2))
                         if dist < 2.0 * self.h:
                             neighbours.append(other_part)
+
         return neighbours
 
     def diff_W(self, r):
@@ -129,36 +152,64 @@ class SPH_main(object):
         return c * dw
 
     def navier_cont(self, part, neighbours):
-        # Set acceleration to 0 initially for sum
-        part.a = self.g
-        # Set derivative of density to 0 initially for sum
-        part.D = 0
-        # Repulsive force
-        rf = 0
-        for nei in neighbours:
-            # Calculate distance between 2 points
-            r = part.x - nei.x
-            dist = np.sqrt(np.sum(r ** 2))
 
-            # Calculate the difference of velocity
-            v = part.v - nei.v
-            v_mod = np.sqrt(np.sum(v ** 2))
+        # For the stencil scheme
+        if self.stencil:
+            for nei in neighbours:
 
-            #if not part.boundary and nei.boundary:
-            #    # Repulsive force calculation from paper
-                #  http://www.wseas.us/e-library/conferences/2011/Corfu/CUTAFLUP/CUTAFLUP-15.pdf
-            #    k = 0.01 * part.B() * self.gamma / self.rho0
-            #    rf = k * self.repulsive_force_psi(part, nei) * (r / (dist ** 2))
-            # Calculate acceleration of particle
-            # normal
-            e = r / dist
-            # Calculate diffW
-            dWdr = self.diff_W(dist)
-            part.a = part.a - nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * dWdr*e + \
-                 self.mu * (nei.m * ((1 / part.rho ** 2) + (1 / nei.rho ** 2)) * dWdr * (v / dist))
+                r_ij = part.x - nei.x
+                r_ji = nei.x - part.x
 
-            # Calculate the derivative of the density
-            part.D = part.D + nei.m * dWdr * np.dot(v, e)
+                dist = np.sqrt(np.sum(r_ij ** 2))  # same for both r
+
+                v_ij = part.v - nei.v
+                v_ji = nei.v - part.v
+
+                e_ij = r_ij / dist
+                e_ji = r_ji / dist
+
+                dWdr = self.diff_W(dist)
+
+                part.a = part.a - nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * dWdr * e_ij + \
+                         self.mu * (nei.m * ((1 / part.rho ** 2) + (1 / nei.rho ** 2)) * dWdr * (v_ij / dist))
+                part.D = part.D + nei.m * dWdr * np.dot(v_ij, e_ij)
+
+                # add corresponding force onto neigh from part
+                nei.a = nei.a - part.m * ((nei.P / nei.rho ** 2) + (part.P / part.rho ** 2)) * dWdr * e_ji + \
+                         self.mu * (part.m * ((1 / nei.rho ** 2) + (1 / part.rho ** 2)) * dWdr * (v_ji / dist))
+                nei.D = nei.D + part.m * dWdr * np.dot(v_ji, e_ji)
+
+        else:
+            # Set acceleration to 0 initially for sum
+            part.a = self.g
+            # Set derivative of density to 0 initially for sum
+            part.D = 0
+            # Repulsive force
+            rf = 0
+            for nei in neighbours:
+                # Calculate distance between 2 points
+                r = part.x - nei.x
+                dist = np.sqrt(np.sum(r ** 2))
+
+                # Calculate the difference of velocity
+                v = part.v - nei.v
+                v_mod = np.sqrt(np.sum(v ** 2))
+
+                #if not part.boundary and nei.boundary:
+                #    # Repulsive force calculation from paper
+                    #  http://www.wseas.us/e-library/conferences/2011/Corfu/CUTAFLUP/CUTAFLUP-15.pdf
+                #    k = 0.01 * part.B() * self.gamma / self.rho0
+                #    rf = k * self.repulsive_force_psi(part, nei) * (r / (dist ** 2))
+                # Calculate acceleration of particle
+                # normal
+                e = r / dist
+                # Calculate diffW
+                dWdr = self.diff_W(dist)
+                part.a = part.a - nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * dWdr*e + \
+                     self.mu * (nei.m * ((1 / part.rho ** 2) + (1 / nei.rho ** 2)) * dWdr * (v / dist))
+
+                # Calculate the derivative of the density
+                part.D = part.D + nei.m * dWdr * np.dot(v, e)
 
     def repulsive_force_psi(self, part, other_part, kj=0.5, shao=False):
         psi = 0
@@ -188,6 +239,13 @@ class SPH_main(object):
             for part in particles:
                 neis = self.neighbour_iterate(part)
                 self.smooth(part, neis)
+
+        if self.stencil:
+            for part in particles:
+                # Set acceleration to 0 initially for sum
+                part.a = self.g
+                # Set derivative of density to 0 initially for sum
+                part.D = 0
 
         for part in particles:
             # Get neighbours of each particle

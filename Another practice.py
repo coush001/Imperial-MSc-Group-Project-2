@@ -12,7 +12,7 @@ domain.initialise_grid()
 domain.place_points(domain.min_x, domain.max_x)
 domain.allocate_to_grid()
 
-domain.simulate(domain.dt, domain.forward_euler)
+domain.simulate()
 
 print("simulation done")
 # x_data = []
@@ -30,7 +30,7 @@ print("simulation done")
 #     y_data.append(y_small)
 
 print("output done")
-a = domain.output_particle()
+
 x = []
 y = []
 for i in domain.particle_list:
