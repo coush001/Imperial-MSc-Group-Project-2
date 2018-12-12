@@ -2,6 +2,8 @@
 import numpy as np
 import particle as particleClass
 import csv
+import pickle
+import copy
 
 
 class SPH_main(object):
@@ -40,10 +42,10 @@ class SPH_main(object):
         # For predictor-corrector scheme
         self.C_CFL = 0.2
 
-        # For repulsive force
-        self.dwall = 0.0
+        # Stencil scheme
+        self.stencil = True
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(12, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=0.62, dt=0, C_CFL=0.2):
+    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=0.5, dt=0, C_CFL=0.2):
         """Set simulation parameters."""
 
         self.min_x[:] = min_x
@@ -73,10 +75,14 @@ class SPH_main(object):
                                  int)
         self.search_grid = np.empty(self.max_list, object)
 
-    def place_points(self, xmin, xmax):
+    def place_points(self):
         """Place points in a rectangle with a square spacing of size dx"""
-        inner_xmin = xmin + 2 * self.h  # Inner xmin is point 0,0
-        inner_xmax = xmax - 2 * self.h  # Inner xmax is point 20,10
+        # Domain border
+        outer_xmin = self.min_x
+        outer_xmax = self.max_x
+        # Domain for fluid
+        inner_xmin = outer_xmin + 2 * self.h  # Inner xmin is point 0,0
+        inner_xmax = outer_xmax - 2 * self.h  # Inner xmax is point 20,10
         self.inner_min_x = inner_xmin
         self.inner_max_x = inner_xmax
 
@@ -135,6 +141,23 @@ class SPH_main(object):
         dt_cfl = np.inf
         dt_f = np.inf
         dt_A = np.sqrt(self.h / np.linalg.norm(part.a)) if np.all(part.a != 0) else np.inf
+
+        # This code only returns the neighbours for the stencil
+        if self.stencil:
+            i, j = part.list_num   # Bucket the particle is in
+            stenc = [[i, j], [i+1, j], [i+1, j+1], [i, j+1], [i-1, j+1]]  # Stencil shape
+            for bucket in stenc:
+                if 0 <= bucket[0] < self.max_list[0] and 0 <= bucket[1] < self.max_list[1]:
+                    print(bucket[1], self.max_list[1])
+
+                    for other_part in self.search_grid[bucket[0], bucket[1]]:
+                        if not part.id == other_part.id:
+                            dn = part.x - other_part.x
+                            dist = np.sqrt(np.sum(dn ** 2))
+                            if dist < 2.0 * self.h:
+                                neighbours.append(other_part)
+            return neighbours
+
         for i in range(max(0, part.list_num[0] - 1),
                        min(part.list_num[0] + 2, self.max_list[0])):
             for j in range(max(0, part.list_num[1] - 1),
@@ -224,48 +247,75 @@ class SPH_main(object):
         if boundary_part.boundary_wall == "L":  # on the left wall
             return np.array([1, 0]), xmin + x
 
-
     def navier_cont(self, part, neighbours, fluid_walls):
-        # Set acceleration to 0 initially for sum
-        part.a = self.g
-        # Set derivative of density to 0 initially for sum
-        part.D = 0
-        # Definitions for repulsive force
-        min_dist = 0.01 * self.dx
-        P_ref = ((self.rho0 * self.c0 ** 2) / self.gamma) * (1.05 ** self.gamma - 1)
-        for nei in neighbours:
-            # Calculate distance between 2 points
-            r = part.x - nei.x
-            dist = np.sqrt(np.sum(r ** 2))
+        # For the stencil scheme
+        if self.stencil:
+            for nei in neighbours:
 
-            # Calculate the difference of velocity
-            v = part.v - nei.v
-            # Calculate acceleration of particle
-            # normal
-            e = r / dist
-            # Calculate diffW
-            dWdr = self.diff_W(dist)
-            part.a = part.a - nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * dWdr*e + \
-                 self.mu * (nei.m * ((1 / part.rho ** 2) + (1 / nei.rho ** 2)) * dWdr * (v / dist))
+                r_ij = part.x - nei.x
+                r_ji = nei.x - part.x
 
-            # Calculate the derivative of the density
-            part.D = part.D + nei.m * dWdr * np.dot(v, e)
+                dist = np.sqrt(np.sum(r_ij ** 2))  # same for both r
 
-        for fluid in fluid_walls:
-            neighs, _ = self.neighbour_iterate(fluid)
-            neighs_boundary = [neigh for neigh in neighs if neigh.boundary]
-            for neigh in neighs_boundary:
-                normal, dist = self.calc_normal(fluid, neigh)
-                print("fluid boundary", fluid.x, "boundary particle x", neigh.x, "normal", normal, neigh.boundary_wall)
-                print("dist", dist, self.dwall)
-                if dist < self.dwall:
-                    print("dist is smaller", dist, self.dwall)
-                    if dist < min_dist:
-                        dist = min_dist
-                    q = self.dwall / dist
-                    da = P_ref * ((q**4 - q**2) / (dist * part.rho)) * normal
-                    print("da", da)
-                    part.a = part.a + da
+                v_ij = part.v - nei.v
+                v_ji = nei.v - part.v
+
+                e_ij = r_ij / dist
+                e_ji = r_ji / dist
+
+                dWdr = self.diff_W(dist)
+
+                part.a = part.a - nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * dWdr * e_ij + \
+                         self.mu * (nei.m * ((1 / part.rho ** 2) + (1 / nei.rho ** 2)) * dWdr * (v_ij / dist))
+                part.D = part.D + nei.m * dWdr * np.dot(v_ij, e_ij)
+
+                # add corresponding force onto neigh from part
+                nei.a = nei.a - part.m * ((nei.P / nei.rho ** 2) + (part.P / part.rho ** 2)) * dWdr * e_ji + \
+                         self.mu * (part.m * ((1 / nei.rho ** 2) + (1 / part.rho ** 2)) * dWdr * (v_ji / dist))
+                nei.D = nei.D + part.m * dWdr * np.dot(v_ji, e_ji)
+
+        else:
+            # Set acceleration to 0 initially for sum
+            part.a = self.g
+            # Set derivative of density to 0 initially for sum
+            part.D = 0
+            # Definitions for repulsive force
+            min_dist = 0.01 * self.dx
+            P_ref = ((self.rho0 * self.c0 ** 2) / self.gamma) * (1.05 ** self.gamma - 1)
+            for nei in neighbours:
+                # Calculate distance between 2 points
+                r = part.x - nei.x
+                dist = np.sqrt(np.sum(r ** 2))
+
+                # Calculate the difference of velocity
+                v = part.v - nei.v
+                # Calculate acceleration of particle
+                # normal
+                e = r / dist
+                # Calculate diffW
+                dWdr = self.diff_W(dist)
+                part.a = part.a - nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * dWdr * e + \
+                         self.mu * (nei.m * ((1 / part.rho ** 2) + (1 / nei.rho ** 2)) * dWdr * (v / dist))
+
+                # Calculate the derivative of the density
+                part.D = part.D + nei.m * dWdr * np.dot(v, e)
+
+            for fluid in fluid_walls:
+                neighs, _ = self.neighbour_iterate(fluid)
+                neighs_boundary = [neigh for neigh in neighs if neigh.boundary]
+                for neigh in neighs_boundary:
+                    normal, dist = self.calc_normal(fluid, neigh)
+                    print("fluid boundary", fluid.x, "boundary particle x", neigh.x, "normal", normal,
+                          neigh.boundary_wall)
+                    print("dist", dist, self.dwall)
+                    if dist < self.dwall:
+                        print("dist is smaller", dist, self.dwall)
+                        if dist < min_dist:
+                            dist = min_dist
+                        q = self.dwall / dist
+                        da = P_ref * ((q ** 4 - q ** 2) / (dist * part.rho)) * normal
+                        print("da", da)
+                        part.a = part.a + da
 
     def forward_euler(self, particles, smooth=False):
         # Smoothing function
@@ -273,6 +323,13 @@ class SPH_main(object):
             for part in particles:
                 neis, _ = self.neighbour_iterate(part)
                 self.smooth(part, neis)
+
+        if self.stencil:
+            for part in particles:
+                # Set acceleration to 0 initially for sum
+                part.a = self.g
+                # Set derivative of density to 0 initially for sum
+                part.D = 0
 
         # Perform navier stokes and continuity equation
         for part in particles:
@@ -353,17 +410,22 @@ class SPH_main(object):
             self.search_grid[part.list_num[0], part.list_num[1]].append(part)
             part.update_P()
 
-    def simulate(self):
+    def simulate(self, n=10):
         """
         :param self:
+        :param n: save file every n dt
         :param dt:
         :param scheme: This is a time-stepping scheme - can either be forward euler or predictor corrector method
         :param smooth_t:
         :return:
         """
         t = self.t0
+        time_array = [t]
         self.allocate_to_grid()
         cnt = 0
+        p0 = self.particle_list
+        p_list = [p0]
+        t_list = [t]
         while t < self.t_max:
             cnt = cnt + 1
             smooth = False
@@ -373,6 +435,30 @@ class SPH_main(object):
             self.predictor_corrector(self.particle_list, smooth=smooth)
             print("Time", t)
             t = t + self.dt
+            # save file every n dt
+            if cnt % n == 0:
+                p_list.append(copy.deepcopy(self.particle_list))
+                t_list.append(t)
+            time_array.append(t)
+        return p_list, t_list
+
+    def save_file(self, p_list, t_lsit):
+        fw = open('dataFile.txt', 'wb')
+        # Pickle the list using the highest protocol available.
+        pickle.dump(p_list, fw, -1)
+        # Pickle dictionary using protocol 0.
+        pickle.dump(t_lsit, fw)
+        fw.close()
+
+
+    def load_file(self):
+        fr = open('dataFile.txt', 'rb')
+        # load particles data
+        p_list = pickle.load(fr)
+        # load times data
+        t_lsit = pickle.load(fr)
+        fr.close()
+        return p_list, t_lsit
 
     def write_to_file(self):
         with open('data.csv', 'w') as csvfile:
