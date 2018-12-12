@@ -67,10 +67,15 @@ class SPH_main(object):
         self.search_grid = np.empty(self.max_list, object)
         print('buckets X and Y', self.max_list)
 
-    def place_points(self, xmin, xmax):
+    def place_points(self):
         """Place points in a rectangle with a square spacing of size dx"""
-        inner_xmin = xmin + 2 * self.h  # Inner xmin is point 0,0
-        inner_xmax = xmax - 2 * self.h  # Inner xmax is point 20,10
+        # Domain border
+        outer_xmin = self.min_x
+        outer_xmax = self.max_x
+
+        # Domain for fluid
+        inner_xmin = outer_xmin + 2 * self.h  # Inner xmin is point 0,0
+        inner_xmax = outer_xmax - 2 * self.h  # Inner xmax is point 20,10
 
         # Add boundary particles
         # Maybe change to 2*dx for 3 boundary points
@@ -401,7 +406,7 @@ class SPH_main(object):
 
         return updated_particles
 
-    def simulate(self, n):
+    def simulate(self, n=10):
         """
         :param self:
         :param n: save file every n dt
