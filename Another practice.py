@@ -7,8 +7,8 @@ import csv
 import numpy as np
 import particle as particleClass
 import copy
-from moviepy.video.io.bindings import mplfig_to_npimage
-import moviepy.editor as mpy
+import os
+import matplotlib
 
 
 class SPH_main(object):
@@ -42,7 +42,7 @@ class SPH_main(object):
         # For predictor-corrector scheme
         self.C_CFL = 0.2
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 5), dx=0.5, h_fac=1.3, t0=0.0, t_max=1, dt=0, C_CFL=0.2):
+    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 5), dx=1, h_fac=1.3, t0=0.0, t_max=1, dt=0, C_CFL=0.2):
         """Set simulation parameters."""
 
         self.min_x[:] = min_x
@@ -529,16 +529,13 @@ def animate(i):
 
 m = np.array(x_data[-1]) - np.array(x_data[0])
 anim = animation.FuncAnimation(fig, animate, frames=len(t_array),
-                               interval=100, blit=True, init_func=init)
+                               interval=40, blit=True, init_func=init)
 
 
 print("animation done")
 
-# ax1.set_xlim(-1, 21)
-# ax1.set_ylim(-1, 11)
-# domain.write_to_file()
-"""
-fig = plt.figure()
-ax1 = fig.add_subplot(1,1,1)
-line, = ax1.plot([], [], lw=2)
-"""
+ffmpegpath = os.path.abspath("./ffmpeg/bin/ffmpeg.exe")
+matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
+writer = animation.FFMpegWriter()
+anim.save("practice.mp4",writer = writer)
+print("animation output done")
