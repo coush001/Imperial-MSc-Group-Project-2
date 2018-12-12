@@ -27,7 +27,7 @@ class SPH_main(object):
         # Physical properties
         self.mu = 0.001  # in Pa s
         self.rho0 = 1000  # kg / m^3
-        self.g = 9.81  # m^2 s^-2
+        self.g = np.array([0.0, 9.81])  # m^2 s^-2
         self.c0 = 20  # m s ^-1
         self.gamma = 7
 
@@ -187,7 +187,6 @@ class SPH_main(object):
             denum = 1 - np.exp(-3*kj**2)
             psi = num / denum
         return psi
-
 
     def forward_euler(self, particles, t, dt, smooth=False):
         updated_particles = []
