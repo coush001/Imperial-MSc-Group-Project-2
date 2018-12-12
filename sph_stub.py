@@ -1,8 +1,6 @@
 """SPH class to find nearest neighbours..."""
 import numpy as np
 import particle as particleClass
-import copy
-import pickle
 import csv
 
 class SPH_main(object):
@@ -53,7 +51,6 @@ class SPH_main(object):
 
     def initialise_grid(self):
         """Initalise simulation grid."""
-
         """Increases the minimum and maximum to account for the virtual particle padding that is required at boundaries"""
         self.min_x = self.min_x - 2.0 * self.h
         self.max_x = self.max_x + 2.0 * self.h
@@ -104,9 +101,6 @@ class SPH_main(object):
             # Set the particle bucket index
             cnt.calc_index()
             # Keep in mind, list_num is bucket coordinates
-            # print("bucket", cnt.list_num[0], cnt.list_num[1])
-            # print("shape of search grid", self.min_x, self.max_x)
-            # print("particle x", cnt.x, cnt.boundary)
             self.search_grid[cnt.list_num[0], cnt.list_num[1]].append(cnt)
 
     def neighbour_iterate(self, part):
@@ -123,7 +117,6 @@ class SPH_main(object):
                         dist = np.sqrt(np.sum(dn ** 2))
                         if dist < 2.0 * self.h:
                             neighbours.append(other_part)
-                            # print("id:", other_part.id, "dn:", dn)
         return neighbours
 
     def diff_W(self, r):
@@ -134,13 +127,6 @@ class SPH_main(object):
         else:
             dw = -0.75 * (2 - q)**2
         return c * dw
-
-    def grad_W(self, part, other_part):
-        dn = part.x - other_part.x  # dn is r_ij (vector)
-        dist = np.sqrt(np.sum(dn ** 2))  # dist is |r_ij| (scalar)
-        e_ij = dn / dist
-        dw = self.diff_W(part, other_part)
-        return dw * e_ij
 
     def navier_cont(self, part, neighbours):
         # Set acceleration to 0 initially for sum
@@ -164,16 +150,15 @@ class SPH_main(object):
             #    k = 0.01 * part.B() * self.gamma / self.rho0
             #    rf = k * self.repulsive_force_psi(part, nei) * (r / (dist ** 2))
             # Calculate acceleration of particle
+            # normal
             e = r / dist
+            # Calculate diffW
             dWdr = self.diff_W(dist)
-
             part.a = part.a - nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * dWdr*e + \
                  self.mu * (nei.m * ((1 / part.rho ** 2) + (1 / nei.rho ** 2)) * dWdr * (v / dist))
 
-            part.D = part.D + nei.m * dWdr * np.dot(v, e)
-            # normal
-
             # Calculate the derivative of the density
+            part.D = part.D + nei.m * dWdr * np.dot(v, e)
 
     def repulsive_force_psi(self, part, other_part, kj=0.5, shao=False):
         psi = 0
@@ -198,9 +183,7 @@ class SPH_main(object):
             f = 0.5*(2-q)**2
         return 10*f
 
-    def forward_euler(self, particles, t, dt, smooth=False):
-        #updated_particles = []
-
+    def forward_euler(self, particles, smooth=False):
         if smooth:
             for part in particles:
                 neis = self.neighbour_iterate(part)
@@ -209,12 +192,7 @@ class SPH_main(object):
         for part in particles:
             # Get neighbours of each particle
             neis = self.neighbour_iterate(part)
-
-
-
             self.navier_cont(part, neis)
-
-
 
         for i in range(self.max_list[0]):
             for j in range(self.max_list[1]):
@@ -230,7 +208,6 @@ class SPH_main(object):
 
             self.search_grid[part.list_num[0], part.list_num[1]].append(part)
             part.update_P()
-
 
     def W(self, r):
         """
@@ -255,11 +232,12 @@ class SPH_main(object):
         num = w
         denum = w/part.rho
         for nei in neighbours:
-            r=np.linalg.norm(part.x-nei.x)
+            r = np.linalg.norm(part.x-nei.x)
             w = self.W(r)
             num += w
             denum += (w / nei.rho)
-        self.rho = num / denum
+
+        part.rho = num / denum
 
     def var_dt(self, part, neis):
         dt_cfl = np.inf
@@ -362,7 +340,7 @@ class SPH_main(object):
 
         return updated_particles
 
-    def simulate(self, dt, scheme, smooth_t=10):
+    def simulate(self):
         """
         :param self:
         :param dt:
@@ -376,30 +354,14 @@ class SPH_main(object):
         self.allocate_to_grid()
         cnt = 0
         while t < self.t_max:
-            cnt=cnt+1
+            cnt = cnt + 1
             smooth = False
             # Smooth after some time steps
-            if cnt%10 == 0:
+            if cnt % 10 == 0:
                 smooth = True
-            scheme(self.particle_list, t, dt, smooth=smooth)
-            print("Time", t)
-
-            t = t + dt
+            self.forward_euler(self.particle_list, smooth=smooth)
+            t = t + self.dt
             time_array.append(t)
-
-    def output_particle(self):
-        x_value_bound = []
-        y_value_bound = []
-        x_value = []
-        y_value = []
-        for part in self.particle_list:
-            if part.boundary:
-                x_value_bound.append(part.x[0])
-                y_value_bound.append(part.x[1])
-            else:
-                x_value.append(part.x[0])
-                y_value.append(part.x[1])
-        return [x_value, y_value, x_value_bound, y_value_bound]
 
     def write_to_file(self):
         with open('data.csv', 'w') as csvfile:
