@@ -71,11 +71,11 @@ Please contact a team member directly if you would like to be involved with the 
 
 ## Authors
 
-* **Adanna ** - *Initial work* -
-* **Hugo ** - *Initial work* -
-* **Laura ** - *Initial work* -
-* **Leo ** - *Initial work* -
-* **Wade ** - *Initial work* -
+* **Adanna**
+* **Hugo**
+* **Laura**
+* **Leo**
+* **Wade**
 
 
 See also the list of [contributors](https://github.com/msc-acse/acse-4-project-2-arctic/contributors) who participated in this project.
