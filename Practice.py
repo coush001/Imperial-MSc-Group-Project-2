@@ -116,5 +116,5 @@ plt.show()
 
 ffmpegpath = os.path.abspath("./ffmpeg/bin/ffmpeg.exe")
 matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
-writer = animation.FFMpegWriter()
+writer = animation.FFMpegWriter(fps=24)
 anim.save("practice.mp4",writer = writer)
