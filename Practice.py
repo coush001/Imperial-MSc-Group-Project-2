@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import matplotlib
+import os 
 
 def assemble_adv_diff_disc_matrix_central(U, kappa, L, N):
     """ Function to form the spatial discretisation matrix for 
@@ -111,3 +113,8 @@ anim = animation.FuncAnimation(fig, animate, frames,
                                interval=40, blit=True, init_func=init)
 
 plt.show()
+
+ffmpegpath = os.path.abspath("./ffmpeg/bin/ffmpeg.exe")
+matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
+writer = animation.FFMpegWriter()
+anim.save("practice",writer = writer)
