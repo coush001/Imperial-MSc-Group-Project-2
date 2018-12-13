@@ -148,15 +148,13 @@ class SPH_main(object):
             stenc = [[i, j], [i+1, j], [i+1, j+1], [i, j+1], [i-1, j+1]]  # Stencil shape
             for bucket in stenc:
                 if 0 <= bucket[0] < self.max_list[0] and 0 <= bucket[1] < self.max_list[1]:
-                    print(bucket[1], self.max_list[1])
-
                     for other_part in self.search_grid[bucket[0], bucket[1]]:
                         if not part.id == other_part.id:
                             dn = part.x - other_part.x
                             dist = np.sqrt(np.sum(dn ** 2))
                             if dist < 2.0 * self.h:
                                 neighbours.append(other_part)
-            return neighbours
+            return neighbours, fluid_walls
 
         for i in range(max(0, part.list_num[0] - 1),
                        min(part.list_num[0] + 2, self.max_list[0])):
