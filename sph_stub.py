@@ -45,7 +45,7 @@ class SPH_main(object):
         # Stencil scheme
         self.stencil = True
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.2, h_fac=1.3, t0=0.0, t_max=3, dt=0, C_CFL=0.2,
+    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=1, h_fac=1.3, t0=0.0, t_max=0.5, dt=0, C_CFL=0.2,
                    stencil=False):
         """Set simulation parameters."""
 
@@ -428,10 +428,11 @@ class SPH_main(object):
         time_array = [t]
         self.allocate_to_grid()
         cnt = 0
-        if(os.path.exists("datafile_1.pkl")):
-            os.remove("datafile_1.pkl")
+        filename = 'datafile_2'
+        if(os.path.exists(filename)):
+            os.remove(filename)
             print ('Remove previous datafile')
-        file = open('datafile_1.pkl','wb')
+        file = open(filename,'wb')
         # generate a progressbar
         widgets = ['Progress: ',Percentage(), ' ', Bar('$'),' ', Timer(),
                        ' ', ETA(), ' ', FileTransferSpeed()] 
@@ -463,7 +464,8 @@ class SPH_main(object):
         p_list = []
         t_list = []
         i = 0
-        file = open('datafile_1.pkl', 'rb')
+        filename = 'datafile_2'
+        file = open(filename, 'rb')
         while i < count:
             if i % 2 == 0:
                 # load particles data
