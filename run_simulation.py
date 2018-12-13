@@ -14,7 +14,7 @@ domain.initialise_grid()
 domain.place_points()
 domain.allocate_to_grid()
 print("Done before simulation")
-count = domain.simulate(10)
+count = domain.simulate(domain.forward_euler)
 print("Done simulation")
 
 file = open('countnum.txt','w')
