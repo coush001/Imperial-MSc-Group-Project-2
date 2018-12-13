@@ -271,10 +271,11 @@ class SPH_main(object):
                          self.mu * (nei.m * ((1 / part.rho ** 2) + (1 / nei.rho ** 2)) * dWdr * (v_ij / dist))
                 part.D = part.D + nei.m * dWdr * np.dot(v_ij, e_ij)
 
-                # add corresponding force onto neigh from part
-                nei.a = nei.a - part.m * ((nei.P / nei.rho ** 2) + (part.P / part.rho ** 2)) * dWdr * e_ji + \
-                         self.mu * (part.m * ((1 / nei.rho ** 2) + (1 / part.rho ** 2)) * dWdr * (v_ji / dist))
-                nei.D = nei.D + part.m * dWdr * np.dot(v_ji, e_ji)
+                if not np.array_equal(part.list_num, nei.list_num):  # Only if not in same bucket to avoid duplication
+                    # add corresponding force onto neigh from part
+                    nei.a = nei.a - part.m * ((nei.P / nei.rho ** 2) + (part.P / part.rho ** 2)) * dWdr * e_ji + \
+                             self.mu * (part.m * ((1 / nei.rho ** 2) + (1 / part.rho ** 2)) * dWdr * (v_ji / dist))
+                    nei.D = nei.D + part.m * dWdr * np.dot(v_ji, e_ji)
 
         else:
             # Set acceleration to 0 initially for sum
@@ -305,7 +306,6 @@ class SPH_main(object):
             for fluid in fluid_walls:
                 neighs, _ = self.neighbour_iterate(fluid)
                 neighs_boundary = [neigh for neigh in neighs if neigh.boundary]
-                # print("neighs_boundaries", neighs_boundary)
                 for neigh in neighs_boundary:
                     normal, _ = self.calc_normal(fluid, neigh)
                     # Distance from wall particle to fluid particle
