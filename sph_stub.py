@@ -45,7 +45,7 @@ class SPH_main(object):
         # Stencil scheme
         self.stencil = True
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=0.5, dt=0, C_CFL=0.2,
+    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=0.85, dt=0.001, C_CFL=0.2,
                    stencil=True):
         """Set simulation parameters."""
 
@@ -252,30 +252,68 @@ class SPH_main(object):
     def navier_cont(self, part, neighbours, fluid_walls):
         # For the stencil scheme
         if self.stencil:
+
+            near_wall = False
+
             for nei in neighbours:
 
                 r_ij = part.x - nei.x
-                r_ji = nei.x - part.x
-
-                dist = np.sqrt(np.sum(r_ij ** 2))  # same for both r
-
+                dist = np.sqrt(np.sum(r_ij ** 2))
                 v_ij = part.v - nei.v
-                v_ji = nei.v - part.v
-
                 e_ij = r_ij / dist
-                e_ji = r_ji / dist
-
                 dWdr = self.diff_W(dist)
 
-                part.a = part.a - nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * dWdr * e_ij + \
+                # Calculate navier eqs for this particle to neighbour interaction
+                nav_acc = - nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * dWdr * e_ij + \
                          self.mu * (nei.m * ((1 / part.rho ** 2) + (1 / nei.rho ** 2)) * dWdr * (v_ij / dist))
-                part.D = part.D + nei.m * dWdr * np.dot(v_ij, e_ij)
+                nav_dens = nei.m * dWdr * np.dot(v_ij, e_ij)
+
+                # Add forces to particle
+                part.a = part.a + nav_acc
+                part.D = part.D + nav_dens
 
                 if not np.array_equal(part.list_num, nei.list_num):  # Only if not in same bucket to avoid duplication
                     # add corresponding force onto neigh from part
-                    nei.a = nei.a - part.m * ((nei.P / nei.rho ** 2) + (part.P / part.rho ** 2)) * dWdr * e_ji + \
-                             self.mu * (part.m * ((1 / nei.rho ** 2) + (1 / part.rho ** 2)) * dWdr * (v_ji / dist))
-                    nei.D = nei.D + part.m * dWdr * np.dot(v_ji, e_ji)
+                    nei.a = nei.a - nav_acc  # Negative for neighbour particle
+                    nei.D = nei.D + nav_dens
+
+                if nei.boundary and not part.boundary:
+                    near_wall = True
+
+            if near_wall:
+                for i in ['left', 'right', 'top', 'bottom']:
+                    if i == 'left':
+                        normal = np.array([1, 0])
+                        dist = np.dot(part.x - self.inner_min_x, normal)
+                    if i == 'right':
+                        normal = np.array([-1, 0])
+                        dist = np.dot(part.x - self.inner_max_x, normal)
+                    if i == 'top':
+                        normal = np.array([0, -1])
+                        dist = np.dot(part.x - self.inner_max_x, normal)
+                    if i == 'bottom':
+                        normal = np.array([0, 1])
+                        dist = np.dot(part.x - self.inner_min_x, normal)
+
+                    # dist is positive scalar distance from wall
+                    d_0 = 0.9 * self.dx
+                    q = dist/d_0
+
+                    if q < 1:
+                        if q < 0.01:
+                            q = 0.01
+
+                        da = normal * ((part.P*1.05*self.rho0)/self.rho0) * ((1/q)**4 - (1/q)**2)/dist
+
+                        boundary_acc = da * (np.linalg.norm(np.dot(part.a, normal))/50)
+
+                        print(' \n Particle', part.id, '\n Wall', i, '\n normal accelerations', np.dot(part.a, normal),
+                              ' \n Accelerate:', da, '\n factored', boundary_acc)
+
+                        part.a = part.a + boundary_acc
+
+
+
 
         else:
             # Set acceleration to 0 initially for sum
