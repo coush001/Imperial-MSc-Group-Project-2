@@ -47,7 +47,7 @@ class SPH_main(object):
         # Stencil scheme
         self.stencil = True
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=2, dt=0, C_CFL=0.2,
+    def set_values(self, min_x=(0.0, 0.0), max_x=(20, 10), dx=0.5, h_fac=1.3, t0=0.0, t_max=10, dt=0, C_CFL=0.2,
                    stencil=True):
         """Set simulation parameters."""
 
@@ -214,10 +214,12 @@ class SPH_main(object):
         The smoothing kernel
         """
         q = r / self.h
-        if q <= 1:
+        if q < 1:
             w = 1 - 1.5*q**2 + 0.75*q**3
-        else:
+        elif 1 <= q < 2:
             w = 0.25 * (2-q)**3
+        else:
+            w = 0
         return self.constant_kernel * w
 
     def diff_W(self, r):
@@ -242,8 +244,19 @@ class SPH_main(object):
                 e_ij = r_ij / dist
                 dWdr = self.diff_W(dist)
 
+                R = 0
+
+                if part.P < 0:
+                    Ra = (0.11*np.abs(part.P))/(part.rho**2)
+                    Rb = (0.11*np.abs(nei.P))/(nei.rho**2)
+                    R = Ra + Rb
+                elif part.P > 0 and nei.P > 0:
+                    R = 0.1*((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2))
+
+                    #print(part.x, nei.x, - nei.m *R*(self.W(dist)/self.W(self.dx))**4 * dWdr * e_ij)
+
                 # Calculate navier eqs for this particle to neighbour interaction
-                nav_acc = - nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * dWdr * e_ij + \
+                nav_acc = - nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2) + R*(self.W(dist)/self.W(self.dx))**4) * dWdr * e_ij + \
                          self.mu * (nei.m * ((1 / part.rho ** 2) + (1 / nei.rho ** 2)) * dWdr * (v_ij / dist))
                 nav_dens = nei.m * dWdr * np.dot(v_ij, e_ij)
 
@@ -339,6 +352,12 @@ class SPH_main(object):
                         part.a = part.a + da
 
     def forward_euler(self, particles, smooth=False):
+        """
+        Forward euler one-time step
+        :param particles: list of particles
+        :param smooth: switch for smoothing function
+        :return: None, just updates the particles list s
+        """
         # Smoothing function
         if smooth:
             for part in particles:
@@ -435,7 +454,7 @@ class SPH_main(object):
                     part.D = 0
 
 
-    def simulate(self, scheme, n=10):
+    def simulate(self, scheme, n=5):
         """
         :param self:
         :param n: save file every n dt
@@ -456,7 +475,7 @@ class SPH_main(object):
             file = open(filename, 'rb')
             file.close()
             os.remove(filename)
-            print ('\n Remove previous datafile')
+            #print ('\n Remove previous datafile')
         file = open(filename,'wb')
         # generate a progressbar
         widgets = ['Progress: ',Percentage(), ' ', Bar('$'),' ', Timer(),
