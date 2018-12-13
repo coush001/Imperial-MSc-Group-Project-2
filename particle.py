@@ -39,7 +39,7 @@ class Particle(object):
         """
         rho0 = self.main_data.rho0
         gamma = self.main_data.gamma
-        self.P = self.B() * ((self.rho / rho0) ** gamma - 1)
+        self.P = self.B() * ((self.rho / rho0)**gamma - 1)
 
     def set_main_data(self, main_data):
         self.main_data = main_data

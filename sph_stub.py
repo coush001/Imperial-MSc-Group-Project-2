@@ -130,6 +130,14 @@ class SPH_main(object):
             # Keep in mind, list_num is bucket coordinates
             self.search_grid[cnt.list_num[0], cnt.list_num[1]].append(cnt)
 
+    def update_search_grid(self, part):
+        """
+        Update the particle to the right bucket
+        """
+        if np.all(np.greater_equal(part.x, self.min_x)) and np.all(np.less_equal(part.x, self.max_x)):
+            self.search_grid[part.list_num[0], part.list_num[1]].append(part)
+
+
     def neighbour_iterate(self, part):
         """Find all the particles within 2h of the specified particle"""
         # save neighbours (particles j) of particles i
@@ -253,9 +261,8 @@ class SPH_main(object):
 
             if near_wall:
                 for i in ['left', 'right', 'top', 'bottom']:
-                    if i == 'left':
-                        normal = np.array([1, 0])
-                        dist = np.dot(part.x - self.inner_min_x, normal)
+                    normal = np.array([1, 0])
+                    dist = np.dot(part.x - self.inner_min_x, normal)
                     if i == 'right':
                         normal = np.array([-1, 0])
                         dist = np.dot(part.x - self.inner_max_x, normal)
@@ -274,7 +281,8 @@ class SPH_main(object):
                         if q < 0.04:
                             q = 0.04
 
-                        Pref = ((self.rho0*self.c0**2)/7.)*(1.02**7-1)  # Reference pressure
+                        rho_rho0 = 1.02
+                        Pref = ((self.rho0*self.c0**2)/self.gamma)*(rho_rho0**self.gamma-1)  # Reference pressure
                         da = normal * (Pref/self.rho0) * ((1/q)**4 - (1/q)**2)/dist
 
                         part.a = part.a + da
@@ -304,9 +312,8 @@ class SPH_main(object):
 
             if near_wall:
                 for i in ['left', 'right', 'top', 'bottom']:
-                    if i == 'left':
-                        normal = np.array([1, 0])
-                        dist = np.dot(part.x - self.inner_min_x, normal)
+                    normal = np.array([1, 0])
+                    dist = np.dot(part.x - self.inner_min_x, normal)
                     if i == 'right':
                         normal = np.array([-1, 0])
                         dist = np.dot(part.x - self.inner_max_x, normal)
@@ -363,7 +370,7 @@ class SPH_main(object):
             part.D = 0
 
             # Fill grid and update pressure
-            self.search_grid[part.list_num[0], part.list_num[1]].append(part)
+            self.update_search_grid(part)
             part.update_P()
 
     def predictor_corrector(self, particles, smooth=False):
@@ -400,7 +407,7 @@ class SPH_main(object):
                     part.rho = part.rho + 0.5 * self.dt * part.D
 
                     # Fill grid and update pressure
-                    self.search_grid[part.list_num[0], part.list_num[1]].append(part)
+                    self.update_search_grid(part)
                     part.update_P()
 
                     # Set acceleration to 0 initially for next loop
@@ -419,7 +426,7 @@ class SPH_main(object):
                     rho_ = part.prev_rho + 0.5 * self.dt * part.D
                     part.rho = 2 * rho_ - part.prev_rho
                     # Fill grid and update pressure
-                    self.search_grid[part.list_num[0], part.list_num[1]].append(part)
+                    self.update_search_grid(part)
                     part.update_P()
 
                     # Set acceleration to 0 initially for sum
@@ -428,7 +435,7 @@ class SPH_main(object):
                     part.D = 0
 
 
-    def simulate(self, scheme, n=1):
+    def simulate(self, scheme, n=10):
         """
         :param self:
         :param n: save file every n dt
