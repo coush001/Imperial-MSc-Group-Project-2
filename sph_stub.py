@@ -44,8 +44,8 @@ class SPH_main(object):
         # Stencil scheme
         self.stencil = True
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=4, dt=0, C_CFL=0.2,
-                   stencil=False):
+    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=2, dt=0, C_CFL=0.2,
+                   stencil=True):
         """Set simulation parameters."""
 
         self.min_x[:] = min_x
@@ -98,14 +98,6 @@ class SPH_main(object):
                     particle = particleClass.Particle(self, x)
                     particle.calc_index()
                     particle.boundary = True
-                    if i <= inner_xmin[0]:
-                        particle.boundary_wall = "L"
-                    elif i >= inner_xmax[0]:
-                        particle.boundary_wall = "R"
-                    elif j <= inner_xmin[1]:
-                        particle.boundary_wall = "B"
-                    elif j >= inner_xmax[1]:
-                        particle.boundary_wall = "T"
                     self.particle_list.append(particle)
 
         # Add fluid particles
@@ -139,7 +131,7 @@ class SPH_main(object):
         """Find all the particles within 2h of the specified particle"""
         # save neighbours (particles j) of particles i
         neighbours = []
-        fluid_walls = []  # List of fluid particles that interact with wall particles
+
         # Start of dynamic time step variables
         dt_cfl = np.inf
         dt_f = np.inf
@@ -156,11 +148,9 @@ class SPH_main(object):
                             dn = part.x - other_part.x
                             dist = np.sqrt(np.sum(dn ** 2))
                             if dist < 2.0 * self.h:
-                                # Append fluid_walls array if condition is met
-                                if not part.boundary and other_part.boundary:
-                                    fluid_walls.append(part)
                                 neighbours.append(other_part)
-            return neighbours, fluid_walls
+
+            return neighbours
 
         for i in range(max(0, part.list_num[0] - 1),
                        min(part.list_num[0] + 2, self.max_list[0])):
@@ -170,9 +160,6 @@ class SPH_main(object):
                     if not part.id == other_part.id:
                         dist = np.linalg.norm(part.x - other_part.x)
                         if dist < 2.0 * self.h:
-                            # Append fluid_walls array if condition is met
-                            if not part.boundary and other_part.boundary:
-                                fluid_walls.append(part)
                             # Add neighbour to list
                             neighbours.append(other_part)
                             # Calculate dynamic time step
@@ -192,7 +179,7 @@ class SPH_main(object):
             # Change dt with dynamic time step
             self.dt = self.C_CFL * np.min([dt_cfl, dt_f, dt_A])
 
-        return neighbours, fluid_walls
+        return neighbours
 
     def smooth(self, part, neighbours):
         """
@@ -230,75 +217,77 @@ class SPH_main(object):
             dw = -0.75 * (2 - q)**2
         return (self.constant_kernel / self.h) * dw
 
-    def calc_normal(self, fluid_part, boundary_part):
-        """
-        Calculate the normal to the boundary wall
-        :param boundary_part:
-        :return:
-        """
-        ymax = self.inner_max_x[1]
-        xmax = self.inner_max_x[0]
-        ymin = self.inner_min_x[1]
-        xmin = self.inner_min_x[0]
-        x = fluid_part.x[0]
-        y = fluid_part.x[1]
-        if boundary_part.boundary_wall == "T":  # on the top wall
-            return np.array([0, -1]), ymax - y
-        if boundary_part.boundary_wall == "B":  # on the bottom wall
-            return np.array([0, 1]), y - ymin
-        if boundary_part.boundary_wall == "R":  # on the right wall
-            return np.array([-1, 0]), xmax - x
-        if boundary_part.boundary_wall == "L":  # on the left wall
-            return np.array([1, 0]), x - xmin
-
-    def navier_cont(self, part, neighbours, fluid_walls):
-        # Definitions for repulsive force
-        min_dist = 0.01 * self.dx
-
+    def navier_cont(self, part, neighbours):
         # For the stencil scheme
         if self.stencil:
+
+            near_wall = False
+
             for nei in neighbours:
 
                 r_ij = part.x - nei.x
-                r_ji = nei.x - part.x
-
-                dist = np.sqrt(np.sum(r_ij ** 2))  # same for both r
-
+                dist = np.sqrt(np.sum(r_ij ** 2))
                 v_ij = part.v - nei.v
-                v_ji = nei.v - part.v
-
                 e_ij = r_ij / dist
-                e_ji = r_ji / dist
-
                 dWdr = self.diff_W(dist)
 
-                part.a = part.a - nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * dWdr * e_ij + \
+                # Calculate navier eqs for this particle to neighbour interaction
+                nav_acc = - nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * dWdr * e_ij + \
                          self.mu * (nei.m * ((1 / part.rho ** 2) + (1 / nei.rho ** 2)) * dWdr * (v_ij / dist))
-                part.D = part.D + nei.m * dWdr * np.dot(v_ij, e_ij)
+                nav_dens = nei.m * dWdr * np.dot(v_ij, e_ij)
+
+                # Add forces to particle
+                part.a = part.a + nav_acc
+                part.D = part.D + nav_dens
 
                 if not np.array_equal(part.list_num, nei.list_num):  # Only if not in same bucket to avoid duplication
                     # add corresponding force onto neigh from part
-                    nei.a = nei.a - part.m * ((nei.P / nei.rho ** 2) + (part.P / part.rho ** 2)) * dWdr * e_ji + \
-                             self.mu * (part.m * ((1 / nei.rho ** 2) + (1 / part.rho ** 2)) * dWdr * (v_ji / dist))
-                    nei.D = nei.D + part.m * dWdr * np.dot(v_ji, e_ji)
+                    nei.a = nei.a - nav_acc  # Negative for neighbour particle
+                    nei.D = nei.D + nav_dens
+
+                if nei.boundary and not part.boundary:
+                    near_wall = True
+
+            if near_wall:
+                for i in ['left', 'right', 'top', 'bottom']:
+                    if i == 'left':
+                        normal = np.array([1, 0])
+                        dist = np.dot(part.x - self.inner_min_x, normal)
+                    if i == 'right':
+                        normal = np.array([-1, 0])
+                        dist = np.dot(part.x - self.inner_max_x, normal)
+                    if i == 'top':
+                        normal = np.array([0, -1])
+                        dist = np.dot(part.x - self.inner_max_x, normal)
+                    if i == 'bottom':
+                        normal = np.array([0, 1])
+                        dist = np.dot(part.x - self.inner_min_x, normal)
+
+                    # dist is positive scalar distance from wall
+                    d_0 = 0.75 * self.dx
+                    q = dist/d_0
+
+                    if 0 < q < 1:
+                        if q < 0.04:
+                            q = 0.04
+
+                        Pref = ((self.rho0*self.c0**2)/7.)*(1.02**7-1)  # Reference pressure
+                        da = normal * (Pref/self.rho0) * ((1/q)**4 - (1/q)**2)/dist
+
+                        part.a = part.a + da
 
         else:
-            # Set acceleration to 0 initially for sum
-            part.a = self.g
-            # Set derivative of density to 0 initially for sum
-            part.D = 0
-            val = 1.001
-            P_ref = ((self.rho0 * self.c0 ** 2) / self.gamma) * (val ** self.gamma - 1)
+            near_wall = False
+
             for nei in neighbours:
                 # Calculate distance between 2 points
                 r = part.x - nei.x
                 dist = np.sqrt(np.sum(r ** 2))
-
                 # Calculate the difference of velocity
                 v = part.v - nei.v
-                # Calculate acceleration of particle
                 # normal
                 e = r / dist
+
                 # Calculate diffW
                 dWdr = self.diff_W(dist)
                 part.a = part.a - nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2)) * dWdr * e + \
@@ -307,39 +296,50 @@ class SPH_main(object):
                 # Calculate the derivative of the density
                 part.D = part.D + nei.m * dWdr * np.dot(v, e)
 
-            for fluid in fluid_walls:
-                neighs, _ = self.neighbour_iterate(fluid)
-                neighs_boundary = [neigh for neigh in neighs if neigh.boundary]
-                for neigh in neighs_boundary:
-                    normal, dist = self.calc_normal(fluid, neigh)
-                    # Distance from wall particle to fluid particle
-                    dist = np.linalg.norm(fluid.x - neigh.x)
-                    if dist < self.dwall:
-                        if dist < min_dist:
-                            dist = min_dist
-                        q = self.dwall / dist
-                        da = P_ref * ((q ** 4 - q ** 2) / (dist * self.rho0)) * normal
+                if nei.boundary and not part.boundary:
+                    near_wall = True
+
+            if near_wall:
+                for i in ['left', 'right', 'top', 'bottom']:
+                    if i == 'left':
+                        normal = np.array([1, 0])
+                        dist = np.dot(part.x - self.inner_min_x, normal)
+                    if i == 'right':
+                        normal = np.array([-1, 0])
+                        dist = np.dot(part.x - self.inner_max_x, normal)
+                    if i == 'top':
+                        normal = np.array([0, -1])
+                        dist = np.dot(part.x - self.inner_max_x, normal)
+                    if i == 'bottom':
+                        normal = np.array([0, 1])
+                        dist = np.dot(part.x - self.inner_min_x, normal)
+
+                    # dist is positive scalar distance from wall
+                    d_0 = 0.75 * self.dx
+                    q = dist/d_0
+
+                    if 0 < q < 1:
+                        if q < 0.04:
+                            q = 0.04
+
+                        Pref = ((self.rho0*self.c0**2)/7.)*(1.02**7-1)
+
+                        da = normal * (Pref/self.rho0) * ((1/q)**4 - (1/q)**2)/dist
+
                         part.a = part.a + da
 
     def forward_euler(self, particles, smooth=False):
         # Smoothing function
         if smooth:
             for part in particles:
-                neis, _ = self.neighbour_iterate(part)
+                neis = self.neighbour_iterate(part)
                 self.smooth(part, neis)
-
-        if self.stencil:
-            for part in particles:
-                # Set acceleration to 0 initially for sum
-                part.a = self.g
-                # Set derivative of density to 0 initially for sum
-                part.D = 0
 
         # Perform navier stokes and continuity equation
         for part in particles:
             # Get neighbours of each particle
-            neis, fluid_walls = self.neighbour_iterate(part)
-            self.navier_cont(part, neis, fluid_walls)
+            neis = self.neighbour_iterate(part)
+            self.navier_cont(part, neis)
 
         # Clear grid
         for i in range(self.max_list[0]):
@@ -353,6 +353,12 @@ class SPH_main(object):
                 part.v = part.v + self.dt * part.a
                 part.calc_index()
             part.rho = part.rho + self.dt * part.D
+
+            # Set acceleration to 0 initially for next loop
+            part.a = self.g
+            # Set derivative of density to 0 initially for next loop
+            part.D = 0
+
             # Fill grid and update pressure
             self.search_grid[part.list_num[0], part.list_num[1]].append(part)
             part.update_P()
@@ -362,21 +368,14 @@ class SPH_main(object):
             # Smoothing function
             if smooth:
                 for part in particles:
-                    neis, _ = self.neighbour_iterate(part)
+                    neis = self.neighbour_iterate(part)
                     self.smooth(part, neis)
-
-            if self.stencil:
-                for part in particles:
-                    # Set acceleration to 0 initially for sum
-                    part.a = self.g
-                    # Set derivative of density to 0 initially for sum
-                    part.D = 0
 
             # Perform navier stokes and continuity equation
             for part in particles:
                 # Get neighbours of each particle
-                neis, fluid_walls = self.neighbour_iterate(part)
-                self.navier_cont(part, neis, fluid_walls)
+                neis = self.neighbour_iterate(part)
+                self.navier_cont(part, neis)
 
             # Clear grid
             for i in range(self.max_list[0]):
@@ -396,9 +395,15 @@ class SPH_main(object):
                         part.v = part.v + 0.5 * self.dt * part.a
                         part.calc_index()
                     part.rho = part.rho + 0.5 * self.dt * part.D
+
                     # Fill grid and update pressure
                     self.search_grid[part.list_num[0], part.list_num[1]].append(part)
                     part.update_P()
+
+                    # Set acceleration to 0 initially for next loop
+                    part.a = self.g
+                    # Set derivative of density to 0 initially for next loop
+                    part.D = 0
 
             if n == 1:  # full-step
                 for part in particles:
@@ -413,6 +418,11 @@ class SPH_main(object):
                     # Fill grid and update pressure
                     self.search_grid[part.list_num[0], part.list_num[1]].append(part)
                     part.update_P()
+
+                    # Set acceleration to 0 initially for sum
+                    part.a = self.g
+                    # Set derivative of density to 0 initially for sum
+                    part.D = 0
 
     def simulate(self, n=10):
         """
@@ -473,6 +483,7 @@ class SPH_main(object):
                 b = pickle.load(file)
                 t_list.append(b)
             i += 1
+        file.close()
         return p_list, t_list
 
 
