@@ -3,8 +3,6 @@ import numpy as np
 import particle as particleClass
 import csv
 import pickle
-import copy
-import  time
 from progressbar import Percentage, Bar, Timer, ETA, FileTransferSpeed, ProgressBar
 
 
@@ -37,7 +35,7 @@ class SPH_main(object):
         self.g = np.array([0.0, -9.81])  # m^2 s^-2
         self.c0 = 20  # m s ^-1
         self.gamma = 7
-
+        
         # For smoothing kernel and its derivative
         self.constant_kernel = 0
 
@@ -47,7 +45,7 @@ class SPH_main(object):
         # Stencil scheme
         self.stencil = True
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=0.5, dt=0, C_CFL=0.2,
+    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 6), dx=0.5, h_fac=1.3, t0=0.0, t_max=5, dt=0, C_CFL=0.2,
                    stencil=True):
         """Set simulation parameters."""
 
@@ -425,14 +423,13 @@ class SPH_main(object):
         time_array = [t]
         self.allocate_to_grid()
         cnt = 0
-        p0 = self.particle_list
-        p_list = [p0]
-        t_list = [t]
+        file = open('datafile555555.pkl','wb')
         # generate a progressbar
         widgets = ['Progress: ',Percentage(), ' ', Bar('$'),' ', Timer(),
                        ' ', ETA(), ' ', FileTransferSpeed()] 
         pbar = ProgressBar(widgets=widgets, maxval=int(self.t_max/self.dt)+1).start()
         i = 0
+        count = 0
         while t < self.t_max:
             cnt = cnt + 1
             smooth = False
@@ -443,31 +440,32 @@ class SPH_main(object):
             t = t + self.dt
             # save file every n dt
             if cnt % n == 0:
-                p_list.append(copy.deepcopy(self.particle_list))
-                t_list.append(t)
+                pickle.dump(self.particle_list, file, -1)
+                pickle.dump(t, file)
+                count += 1
             time_array.append(t)
             i += 1
             pbar.update( i )
         pbar.finish()
+        return count
+
+    def load_file(self, count):
+        p_list = []
+        t_list = []
+        i = 0
+        file = open('datafile555555.pkl', 'rb')
+        while i < 2 * count:
+            if i % 2 == 0:
+                # load particles data
+                a = pickle.load(file)
+                p_list.append(a)
+            else:
+                # load times data
+                b = pickle.load(file)
+                t_list.append(b)
+            i += 1
         return p_list, t_list
 
-    def save_file(self, p_list, t_lsit):
-        fw = open('dataFile.txt', 'wb')
-        # Pickle the list using the highest protocol available.
-        pickle.dump(p_list, fw, -1)
-        # Pickle dictionary using protocol 0.
-        pickle.dump(t_lsit, fw)
-        fw.close()
-
-
-    def load_file(self):
-        fr = open('dataFile.txt', 'rb')
-        # load particles data
-        p_list = pickle.load(fr)
-        # load times data
-        t_lsit = pickle.load(fr)
-        fr.close()
-        return p_list, t_lsit
 
     def write_to_file(self):
         with open('data.csv', 'w') as csvfile:

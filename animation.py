@@ -11,9 +11,12 @@ import sph_stub as sphClass
 import matplotlib
 import numpy as np
 
+f = open('countnum.txt', 'r')
+count = int(f.read())
+f.close()
 
 domain = sphClass.SPH_main()
-p_list, t_lsit = domain.load_file()
+p_list, t_lsit = domain.load_file(count)
 
 x_data = []
 x_boundary = []
@@ -38,7 +41,7 @@ print("get data done")
 fig = plt.figure(figsize=(10, 5))
 ax1 = fig.add_subplot(111)
 ax1.set_xlim(-2, 12)
-ax1.set_ylim(-2, 6.8)
+ax1.set_ylim(-2, 9)
 # ax1.scatter(x_data[0], y_data[0], 'b.', )
 moving_part = ax1.scatter(x_data[0][0], x_data[0][1])
 # ax1.scatter(x_boundary[0], y_boundary[0],)
