@@ -11,54 +11,77 @@ import sph_stub as sphClass
 import matplotlib
 import numpy as np
 
-f = open('countnum.txt', 'r')
-count = int(f.read())
-f.close()
 
-domain = sphClass.SPH_main()
-p_list, t_lsit = domain.load_file(count)
+def get_data(p_list):
+    x_data = []
+    x_boundary = []
+    pressure = []
+    velocity = []
+    rho = []
+    acceleration = []
+    for i in p_list:
+        x_small = []
+        x_bound_small = []
+        pressure_small = []
+        velocity_small = []
+        rho_small = []
+        acceleration_small = []
+        for j in i:
+            if j.boundary is False:
+                x_small.append([j.x[0], j.x[1]])
+                pressure_small.append(j.P)
+                velocity_small.append(np.linalg.norm(j.v))
+                acceleration_small.append(np.linalg.norm(j.a))
+                rho_small.append(j.rho)
+            else:
+                x_bound_small.append([j.x[0], j.x[1]])
+        x_data.append(x_small)
+        x_boundary.append(x_bound_small)
+        pressure.append(pressure_small)
+        velocity.append(velocity_small)
+        rho.append(rho_small)
+        acceleration.append(acceleration_small)
+    print("get data done")
+    return x_data, x_boundary, pressure, velocity, rho, acceleration
 
-x_data = []
-x_boundary = []
-x_small = []
-pressure = []
-for i in p_list:
-    x_small = []
-    x_bound_small = []
-    pressure_small = []
-    for j in i:
-        if j.boundary is False:
-            x_small.append([j.x[0], j.x[1]])
-            pressure_small.append(j.P)
-        else:
-            x_bound_small.append([j.x[0], j.x[1]])
-    x_data.append(x_small)
-    x_boundary.append(x_bound_small)
-    pressure.append(pressure_small)
-print("get data done")
+def get_countnum():
+    f = open('countnum.txt', 'r')
+    count = int(f.read())
+    f.close()
+    return count
 
 
-fig = plt.figure(figsize=(10, 5))
-ax1 = fig.add_subplot(111)
-ax1.set_xlim(-2, 12)
-ax1.set_ylim(-2, 9)
-# ax1.scatter(x_data[0], y_data[0], 'b.', )
-moving_part = ax1.scatter(x_data[0][0], x_data[0][1])
-# ax1.scatter(x_boundary[0], y_boundary[0],)
-boundary = ax1.scatter(x_boundary[0][0], x_boundary[0][1])
-# moving_part, = ax1.scatter([], [], 'b', )
-time_text = ax1.text(0.7, 0.8, '', transform=ax1.transAxes)
-
-
-def animate(i):
-    pre = (np.array(pressure[i])-min(pressure[i]))/(max(pressure[i])-min(pressure[i]))
+def get_color(data_type, i):
+    """
+    choose type of data to get the color
+    ex: pressure, velocity, rho, acceleration
+    iis the animation time
+    """
+    pre = (np.array(data_type[i])-min(data_type[i]))/(max(data_type[i])-min(data_type[i]))
     color = []
     colorbound = []
     for j in range(len(pre)):
         color.append([pre[j], 0.6, 1-pre[j]])
     for j in range(len(x_boundary[i])):
         colorbound.append([0, 0, 0])
-    color = np.array(color)
+    return np.array(color), np.array(colorbound)
+
+
+domain = sphClass.SPH_main()
+p_list, t_lsit = domain.load_file(get_countnum())
+x_data, x_boundary, pressure, velocity, rho, acceleration = get_data(p_list)
+
+fig = plt.figure(figsize=(10, 5))
+ax1 = fig.add_subplot(111)
+ax1.set_xlim(-2, 12)
+ax1.set_ylim(-2, 9)
+moving_part = ax1.scatter(x_data[0][0], x_data[0][1])
+boundary = ax1.scatter(x_boundary[0][0], x_boundary[0][1])
+time_text = ax1.text(0.7, 0.8, '', transform=ax1.transAxes)
+
+
+def animate(i):
+    color, colorbound = get_color(acceleration, i) # pressure can be change to velocity, rho ,acceleration
     moving_part.set_color(color)
     moving_part.set_offsets(x_data[i])
     boundary.set_offsets(x_boundary[i])
@@ -77,26 +100,3 @@ matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
 writer = animation.FFMpegWriter(fps = 15)
 anim.save("video.mp4",writer = writer)
 print("animation output done")
-"""
-print("animation done")
-fig = plt.figure(figsize=(10, 5))
-ax1 = fig.add_subscatter(111)
-line, = ax1.scatter([], [], 'b',)
-
-def make_frame(t):
-    i = int(t/0.001)
-    line.set_data(x_data[i], y_data[i])
-    ax1.clear()
-    ax1.scatter(xf, Cex, 'k', lw=3, label='exact ss solution')
-    ax1.set_title("SPH practice", fontsize=16)
-    ax1.scatter(x, C[:, i])
-    ax1.set_ylim(-0.1, 1.1)
-    time_text = ax1.text(0.78, 0.95, '', transform=ax1.transAxes)
-    time_text.set_text('time = {0:.3f}'.format(t))
-    return mplfig_to_npimage(fig)
-
-duration = 1
-animation = VideoClip(make_frame, duration=duration)
-print("animation done")
-animation.write_gif('togif.gif', fps=20)
-"""

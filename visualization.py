@@ -48,7 +48,6 @@ def update(frame_number):
 
     # Update the scatter collection, with the new colors, sizes and positions.
     scat.set_edgecolors(rain_drops['color'])
-    print(type(rain_drops['color']),rain_drops['color'])
     scat.set_sizes(rain_drops['size'])
     scat.set_offsets(rain_drops['position'])
 
@@ -56,4 +55,5 @@ def update(frame_number):
 # Construct the animation, using the update function as the animation
 # director.
 animation = FuncAnimation(fig, update, interval=10)
+plt.colorbar()
 plt.show()

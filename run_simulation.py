@@ -14,7 +14,7 @@ domain.initialise_grid()
 domain.place_points()
 domain.allocate_to_grid()
 print("Done before simulation")
-domain.simulate(10)
+domain.simulate(n=2)
 
 print("Done simulation")
 
