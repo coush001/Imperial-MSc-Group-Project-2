@@ -45,7 +45,7 @@ class SPH_main(object):
         # Stencil scheme
         self.stencil = True
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=0.85, dt=0.001, C_CFL=0.2,
+    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=0.833, dt=0.001, C_CFL=0.2,
                    stencil=True):
         """Set simulation parameters."""
 
@@ -305,10 +305,10 @@ class SPH_main(object):
 
                         da = normal * ((part.P*1.05*self.rho0)/self.rho0) * ((1/q)**4 - (1/q)**2)/dist
 
-                        boundary_acc = da * (np.linalg.norm(np.dot(part.a, normal))/50)
+                        boundary_acc = da * (np.linalg.norm(np.dot(part.a, normal))/500)
 
-                        print(' \n Particle', part.id, '\n Wall', i, '\n normal accelerations', np.dot(part.a, normal),
-                              ' \n Accelerate:', da, '\n factored', boundary_acc)
+                        print(' \n Particle', part.id, '\n Wall', i, '\n normal', normal, '\n normal acceleration', np.linalg.norm(np.dot(part.a, normal)),
+                              ' \n da:', da, '\n factored', boundary_acc, '\n q', q, '\n dist', dist, '\n \n')
 
                         part.a = part.a + boundary_acc
 
