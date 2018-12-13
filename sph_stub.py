@@ -45,7 +45,7 @@ class SPH_main(object):
         # Stencil scheme
         self.stencil = True
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=1, h_fac=1.3, t0=0.0, t_max=0.5, dt=0, C_CFL=0.2,
+    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=2, dt=0, C_CFL=0.2,
                    stencil=False):
         """Set simulation parameters."""
 
@@ -428,8 +428,10 @@ class SPH_main(object):
         time_array = [t]
         self.allocate_to_grid()
         cnt = 0
-        filename = 'datafile_2'
+        filename = 'datafile_2.pkl'
         if(os.path.exists(filename)):
+            file = open(filename, 'rb')
+            file.close()
             os.remove(filename)
             print ('Remove previous datafile')
         file = open(filename,'wb')
@@ -464,7 +466,7 @@ class SPH_main(object):
         p_list = []
         t_list = []
         i = 0
-        filename = 'datafile_2'
+        filename = 'datafile_2.pkl'
         file = open(filename, 'rb')
         while i < count:
             if i % 2 == 0:
