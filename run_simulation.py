@@ -14,7 +14,11 @@ domain.initialise_grid()
 domain.place_points()
 domain.allocate_to_grid()
 print("Done before simulation")
-partcle, timelist = domain.simulate(10)
+count = domain.simulate(10)
 print("Done simulation")
-domain.save_file(partcle, timelist)
+
+file = open('countnum.txt','w')
+file.write(str(count))
+file.close()
+
 print("Done savefile")

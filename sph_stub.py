@@ -5,6 +5,8 @@ import csv
 import pickle
 import copy
 
+from progressbar import Percentage, Bar, Timer, ETA, FileTransferSpeed, ProgressBar
+import os
 
 class SPH_main(object):
     """Primary SPH object"""
@@ -352,7 +354,7 @@ class SPH_main(object):
                         if dist < min_dist:
                             dist = min_dist
                         q = self.dwall / dist
-                        da = P_ref * ((q ** 4 - q ** 2) / (dist * part.rho)) * normal
+                        da = P_ref * ((q ** 4 - q ** 2) / (dist * self.rho0)) * normal
                         part.a = part.a + da
 
     def forward_euler(self, particles, smooth=False):
@@ -393,60 +395,61 @@ class SPH_main(object):
             part.update_P()
 
     def predictor_corrector(self, particles, smooth=False):
-        # Smoothing function
-        if smooth:
+        for n in range(2):
+            # Smoothing function
+            if smooth:
+                for part in particles:
+                    neis, _ = self.neighbour_iterate(part)
+                    self.smooth(part, neis)
+
+            if self.stencil:
+                for part in particles:
+                    # Set acceleration to 0 initially for sum
+                    part.a = self.g
+                    # Set derivative of density to 0 initially for sum
+                    part.D = 0
+
+            # Perform navier stokes and continuity equation
             for part in particles:
-                neis, _ = self.neighbour_iterate(part)
-                self.smooth(part, neis)
+                # Get neighbours of each particle
+                neis, fluid_walls = self.neighbour_iterate(part)
+                self.navier_cont(part, neis, fluid_walls)
 
-        # Perform navier stokes and continuity equation
-        for part in particles:
-            # Get neighbours of each particle
-            neis, fluid_walls = self.neighbour_iterate(part)
-            self.navier_cont(part, neis, fluid_walls)
+            # Clear grid
+            for i in range(self.max_list[0]):
+                for j in range(self.max_list[1]):
+                    self.search_grid[i, j] = []
 
-        # Clear grid
-        for i in range(self.max_list[0]):
-            for j in range(self.max_list[1]):
-                self.search_grid[i, j] = []
+            # Perform forward euler update
+            if n == 0:  # half step
+                for part in particles:
+                    if not part.boundary:
+                        # Save particle info
+                        part.prev_x = part.x
+                        part.prev_v = part.v
+                        part.prev_rho = part.rho
 
-        # Perform Predictor-Corrector update
-        for part in particles:
-            # Save particle info
-            part.prev_x = part.x
-            part.prev_v = part.v
-            part.prev_rho = part.rho
+                        part.x = part.x + 0.5 * self.dt * part.v
+                        part.v = part.v + 0.5 * self.dt * part.a
+                        part.calc_index()
+                    part.rho = part.rho + 0.5 * self.dt * part.D
+                    # Fill grid and update pressure
+                    self.search_grid[part.list_num[0], part.list_num[1]].append(part)
+                    part.update_P()
 
-            if not part.boundary:
-                # Half-step
-                part.x = part.x + 0.5 * self.dt * part.v
-                part.v = part.v * 0.5 * self.dt * part.a
-                part.calc_index()
-            part.rho = part.rho + 0.5 * self.dt * part.D
-            # Fill grid and update pressure
-            self.search_grid[part.list_num[0], part.list_num[1]].append(part)
-            part.update_P()
-
-        # Perform navier stokes and continuity equation
-        for part in particles:
-            # Get neighbours of each particle
-            neis, fluid_walls = self.neighbour_iterate(part)
-            self.navier_cont(part, neis, fluid_walls)
-
-        # Full-step
-        for part in particles:
-            if not part.boundary:
-                x_ = part.prev_x + 0.5 * self.dt * part.v
-                part.x = 2 * x_ - part.prev_x
-                part.calc_index()
-                v_ = part.prev_v + 0.5 * self.dt * part.a
-                part.v = 2 * v_ - part.prev_v
-            rho_ = part.prev_rho + 0.5 * self.dt * part.D
-            part.rho = 2 * rho_ - part.prev_rho
-
-            # Fill grid and update pressure
-            self.search_grid[part.list_num[0], part.list_num[1]].append(part)
-            part.update_P()
+            if n == 1:  # full-step
+                for part in particles:
+                    if not part.boundary:
+                        x_ = part.prev_x + 0.5 * self.dt * part.v
+                        part.x = 2 * x_ - part.prev_x
+                        v_ = part.prev_v + 0.5 * self.dt * part.a
+                        part.v = 2 * v_ - part.prev_v
+                        part.calc_index()
+                    rho_ = part.prev_rho + 0.5 * self.dt * part.D
+                    part.rho = 2 * rho_ - part.prev_rho
+                    # Fill grid and update pressure
+                    self.search_grid[part.list_num[0], part.list_num[1]].append(part)
+                    part.update_P()
 
     def simulate(self, n=10):
         """
@@ -464,6 +467,20 @@ class SPH_main(object):
         p0 = self.particle_list
         p_list = [p0]
         t_list = [t]
+        filename = 'datafile_2.pkl'
+        if(os.path.exists(filename)):
+            file = open(filename, 'rb')
+            file.close()
+            os.remove(filename)
+            print ('Remove previous datafile')
+        file = open(filename,'wb')
+        # generate a progressbar
+        widgets = ['Progress: ',Percentage(), ' ', Bar('$'),' ', Timer(),
+                       ' ', ETA(), ' ', FileTransferSpeed()]
+        pbar = ProgressBar(widgets=widgets, maxval=int(self.t_max/self.dt)+1).start()
+        i = 0
+        count = 0
+
         while t < self.t_max:
             cnt = cnt + 1
             smooth = False
@@ -475,28 +492,35 @@ class SPH_main(object):
             t = t + self.dt
             # save file every n dt
             if cnt % n == 0:
-                p_list.append(copy.deepcopy(self.particle_list))
-                t_list.append(t)
+                pickle.dump(self.particle_list, file, -1)
+                pickle.dump(t, file)
+                count += 2
             time_array.append(t)
+            i += 1
+            pbar.update( i )
+        pbar.finish()
+        file.close()
+        return count
+
+    def load_file(self, count):
+        p_list = []
+        t_list = []
+        i = 0
+        filename = 'datafile_2.pkl'
+        file = open(filename, 'rb')
+        while i < count:
+            if i % 2 == 0:
+                # load particles data
+                a = pickle.load(file)
+                p_list.append(a)
+            else:
+                # load times data
+                b = pickle.load(file)
+                t_list.append(b)
+            i += 1
+        file.close()
         return p_list, t_list
 
-    def save_file(self, p_list, t_lsit):
-        fw = open('dataFile.txt', 'wb')
-        # Pickle the list using the highest protocol available.
-        pickle.dump(p_list, fw, -1)
-        # Pickle dictionary using protocol 0.
-        pickle.dump(t_lsit, fw)
-        fw.close()
-
-
-    def load_file(self):
-        fr = open('dataFile.txt', 'rb')
-        # load particles data
-        p_list = pickle.load(fr)
-        # load times data
-        t_lsit = pickle.load(fr)
-        fr.close()
-        return p_list, t_lsit
 
     def write_to_file(self):
         with open('data.csv', 'w') as csvfile:

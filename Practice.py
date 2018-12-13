@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from moviepy.editor import VideoClip
+from moviepy.video.io.bindings import mplfig_to_npimage
 
 def assemble_adv_diff_disc_matrix_central(U, kappa, L, N):
     """ Function to form the spatial discretisation matrix for 
@@ -85,29 +87,28 @@ xf = np.linspace(0, L, 1000)
 Cex = CE * (np.exp(Pe * xf / L) - 1) / (np.exp(Pe) - 1)
 ax1.plot(xf, Cex, 'k', lw=3, label='exact ss solution')
 line, = ax1.plot([], [], 'b', lw=3, label='transient numerical solution')
-ax1.plot(xf, Cex/0.8, 'g', lw=3, label='line1plot')
-line1, = ax1.plot([], [], 'r', lw=3, label='line1')
 time_text = ax1.text(0.78, 0.95, '', transform=ax1.transAxes)
 ax1.legend(loc='upper left', fontsize=14)
 
 
-def init():
-    line.set_data([], [])
-    time_text.set_text('')
-    line1.set_data([], [])
-    return line, time_text, line1
+fig = plt.figure(figsize=(10, 5))
+ax1 = fig.add_subplot(111)
 
 
-def animate(i):
+def make_frame(t):
+    i = int(t/0.001)
     line.set_data(x, C[:, i])
-    line1.set_data(x, C[:, i]/0.8)
-    time_text.set_text('time = {0:.3f}'.format(i*dt))
-    return line, time_text, line1
+    ax1.clear()
+    ax1.plot(xf, Cex, 'k', lw=3, label='exact ss solution')
+    ax1.set_title("SPH practice", fontsize=16)
+    ax1.plot(x, C[:, i])
+    ax1.set_ylim(-0.1, 1.1)
+    time_text = ax1.text(0.78, 0.95, '', transform=ax1.transAxes)
+    time_text.set_text('time = {0:.3f}'.format(t))
+    return mplfig_to_npimage(fig)
 
+duration = 1
+animation = VideoClip(make_frame, duration=duration)
+print("animation done")
+animation.write_gif('togif.gif', fps=20)
 
-number_frames = 100
-frames = np.arange(0, C.shape[1], int(len(t)/number_frames))
-anim = animation.FuncAnimation(fig, animate, frames,
-                               interval=40, blit=True, init_func=init)
-
-plt.show()

@@ -9,10 +9,10 @@ import numpy as np
 domain = sphClass.SPH_main()
 domain.set_values()
 domain.initialise_grid()
-domain.place_points()
+domain.place_points(domain.min_x, domain.max_x)
 domain.allocate_to_grid()
 
-domain.simulate()
+domain.simulate(domain.dt, domain.forward_euler)
 
 print("simulation done")
 # x_data = []
@@ -30,24 +30,16 @@ print("simulation done")
 #     y_data.append(y_small)
 
 print("output done")
-
+a = domain.output_particle()
 x = []
 y = []
-x_bound = []
-y_bound = []
 for i in domain.particle_list:
-    if i.boundary:
-        x_bound.append(i.x[0])
-        y_bound.append(i.x[1])
-    else:
-        x.append(i.x[0])
-        y.append(i.x[1])
+    x.append(i.x[0])
+    y.append(i.x[1])
 
 fig = plt.figure(figsize=(10, 5))
 ax1 = fig.add_subplot(111)
 ax1.plot(x, y, 'b.', )
-ax1.plot(x_bound, y_bound, 'r.', )
-
 # moving_part, = ax1.plot([], [], 'b.', )
 # # moving_part, = ax1.plot([], [], 'b', )
 # ax1.plot(a[2], a[3], 'r.', )
