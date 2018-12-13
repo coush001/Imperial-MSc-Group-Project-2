@@ -18,7 +18,6 @@ class Particle(object):
         self.P = 0
         self.m = main_data.dx ** 2 * main_data.rho0  # initial mass depends on the initial particle spacing
         self.boundary = False  # Particle by default is not on the boundary
-        self.boundary_wall = "T"  # Boundary particle wall
         # For predictor corrector
         self.prev_x = np.array(x)
         self.prev_v = np.zeros(2)
@@ -61,9 +60,6 @@ class Particle(object):
     def set_rho(self, rho):
         self.rho = rho
         self.update_P()
-
-    def set_P(self, P):
-        self.P = P
 
     def m(self, m):
         self.m = m
