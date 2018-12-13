@@ -4,7 +4,7 @@ import particle as particleClass
 import csv
 import pickle
 from progressbar import Percentage, Bar, Timer, ETA, FileTransferSpeed, ProgressBar
-import os, sys
+import os
 
 class SPH_main(object):
     """Primary SPH object"""
@@ -45,7 +45,7 @@ class SPH_main(object):
         # Stencil scheme
         self.stencil = True
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=2, dt=0, C_CFL=0.2,
+    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.2, h_fac=1.3, t0=0.0, t_max=3, dt=0, C_CFL=0.2,
                    stencil=False):
         """Set simulation parameters."""
 
@@ -456,6 +456,7 @@ class SPH_main(object):
             i += 1
             pbar.update( i )
         pbar.finish()
+        file.close()
         return count
 
     def load_file(self, count):
