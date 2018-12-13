@@ -47,7 +47,7 @@ class SPH_main(object):
         # Stencil scheme
         self.stencil = True
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=1.5, dt=0, C_CFL=0.2,
+    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=4, dt=0, C_CFL=0.2,
                    stencil=False):
         """Set simulation parameters."""
 
@@ -248,11 +248,11 @@ class SPH_main(object):
         if boundary_part.boundary_wall == "T":  # on the top wall
             return np.array([0, -1]), ymax - y
         if boundary_part.boundary_wall == "B":  # on the bottom wall
-            return np.array([0, 1]), ymin + y
+            return np.array([0, 1]), y - ymin
         if boundary_part.boundary_wall == "R":  # on the right wall
             return np.array([-1, 0]), xmax - x
         if boundary_part.boundary_wall == "L":  # on the left wall
-            return np.array([1, 0]), xmin + x
+            return np.array([1, 0]), x - xmin
 
     def navier_cont(self, part, neighbours, fluid_walls):
         # Definitions for repulsive force
@@ -290,7 +290,8 @@ class SPH_main(object):
             part.a = self.g
             # Set derivative of density to 0 initially for sum
             part.D = 0
-            P_ref = ((self.rho0 * self.c0 ** 2) / self.gamma) * (1.05 ** self.gamma - 1)
+            val = 1.001
+            P_ref = ((self.rho0 * self.c0 ** 2) / self.gamma) * (val ** self.gamma - 1)
             for nei in neighbours:
                 # Calculate distance between 2 points
                 r = part.x - nei.x
@@ -313,7 +314,7 @@ class SPH_main(object):
                 neighs, _ = self.neighbour_iterate(fluid)
                 neighs_boundary = [neigh for neigh in neighs if neigh.boundary]
                 for neigh in neighs_boundary:
-                    normal, _ = self.calc_normal(fluid, neigh)
+                    normal, dist = self.calc_normal(fluid, neigh)
                     # Distance from wall particle to fluid particle
                     dist = np.linalg.norm(fluid.x - neigh.x)
                     if dist < self.dwall:
@@ -355,7 +356,9 @@ class SPH_main(object):
                 part.v = part.v + self.dt * part.a
                 part.calc_index()
             part.rho = part.rho + self.dt * part.D
-
+            print("x of particle", part.x)
+            print("v of particle", part.v)
+            print("a of particle", part.a)
             # Fill grid and update pressure
             self.search_grid[part.list_num[0], part.list_num[1]].append(part)
             part.update_P()
