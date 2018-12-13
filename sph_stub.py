@@ -46,7 +46,7 @@ class SPH_main(object):
         self.stencil = True
 
     def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=0.5, dt=0, C_CFL=0.2,
-                   stencil=False):
+                   stencil=True):
         """Set simulation parameters."""
 
         self.min_x[:] = min_x
