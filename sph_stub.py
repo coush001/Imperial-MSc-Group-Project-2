@@ -45,7 +45,8 @@ class SPH_main(object):
         # Stencil scheme
         self.stencil = True
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=0.5, dt=0, C_CFL=0.2):
+    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=0.5, dt=0, C_CFL=0.2,
+                   stencil=False):
         """Set simulation parameters."""
 
         self.min_x[:] = min_x
@@ -63,6 +64,9 @@ class SPH_main(object):
 
         # For repulsive force
         self.dwall = 0.9 * self.dx
+
+        # Stencil
+        self.stencil = stencil
 
     def initialise_grid(self):
         """Initalise simulation grid."""
@@ -301,18 +305,16 @@ class SPH_main(object):
             for fluid in fluid_walls:
                 neighs, _ = self.neighbour_iterate(fluid)
                 neighs_boundary = [neigh for neigh in neighs if neigh.boundary]
+                # print("neighs_boundaries", neighs_boundary)
                 for neigh in neighs_boundary:
-                    normal, dist = self.calc_normal(fluid, neigh)
-                    print("fluid boundary", fluid.x, "boundary particle x", neigh.x, "normal", normal,
-                          neigh.boundary_wall)
-                    print("dist", dist, self.dwall)
+                    normal, _ = self.calc_normal(fluid, neigh)
+                    # Distance from wall particle to fluid particle
+                    dist = np.linalg.norm(fluid.x - neigh.x)
                     if dist < self.dwall:
-                        print("dist is smaller", dist, self.dwall)
                         if dist < min_dist:
                             dist = min_dist
                         q = self.dwall / dist
                         da = P_ref * ((q ** 4 - q ** 2) / (dist * part.rho)) * normal
-                        print("da", da)
                         part.a = part.a + da
 
     def forward_euler(self, particles, smooth=False):
@@ -430,7 +432,7 @@ class SPH_main(object):
             # Smooth after some time steps
             if cnt % 10 == 0:
                 smooth = True
-            self.predictor_corrector(self.particle_list, smooth=smooth)
+            self.forward_euler(self.particle_list, smooth=smooth)
             print("Time", t)
             t = t + self.dt
             # save file every n dt
