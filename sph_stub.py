@@ -45,7 +45,7 @@ class SPH_main(object):
         # Stencil scheme
         self.stencil = True
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=2, dt=0, C_CFL=0.2,
+    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 5), dx=0.5, h_fac=1.3, t0=0.0, t_max=1, dt=0, C_CFL=0.2,
                    stencil=False):
         """Set simulation parameters."""
 
@@ -428,12 +428,12 @@ class SPH_main(object):
         time_array = [t]
         self.allocate_to_grid()
         cnt = 0
-        filename = 'datafile_2.pkl'
-        if(os.path.exists(filename)):
-            file = open(filename, 'rb')
-            file.close()
-            os.remove(filename)
-            print ('Remove previous datafile')
+        filename = 'datafile_3.pkl'
+#        if(os.path.exists(filename)):
+#            file = open(filename, 'rb')
+#            file.close()
+#            os.remove(filename)
+#            print ('Remove previous datafile')
         file = open(filename,'wb')
         # generate a progressbar
         widgets = ['Progress: ',Percentage(), ' ', Bar('$'),' ', Timer(),
@@ -455,18 +455,19 @@ class SPH_main(object):
                 pickle.dump(self.particle_list, file, -1)
                 pickle.dump(t, file)
                 count += 2
+                f = open('countnum.txt','w')
+                f.write(str(count))
             time_array.append(t)
             i += 1
             pbar.update( i )
+        f.close()
         pbar.finish()
-        file.close()
-        return count
 
     def load_file(self, count):
         p_list = []
         t_list = []
         i = 0
-        filename = 'datafile_2.pkl'
+        filename = 'datafile_3.pkl'
         file = open(filename, 'rb')
         while i < count:
             if i % 2 == 0:
@@ -478,7 +479,6 @@ class SPH_main(object):
                 b = pickle.load(file)
                 t_list.append(b)
             i += 1
-        file.close()
         return p_list, t_list
 
 
