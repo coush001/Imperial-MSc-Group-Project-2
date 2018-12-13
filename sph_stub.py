@@ -45,7 +45,7 @@ class SPH_main(object):
         # Stencil scheme
         self.stencil = True
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=0.5, dt=0, C_CFL=0.2):
+    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=1, dt=0, C_CFL=0.2):
         """Set simulation parameters."""
 
         self.min_x[:] = min_x
@@ -267,10 +267,11 @@ class SPH_main(object):
                          self.mu * (nei.m * ((1 / part.rho ** 2) + (1 / nei.rho ** 2)) * dWdr * (v_ij / dist))
                 part.D = part.D + nei.m * dWdr * np.dot(v_ij, e_ij)
 
-                # add corresponding force onto neigh from part
-                nei.a = nei.a - part.m * ((nei.P / nei.rho ** 2) + (part.P / part.rho ** 2)) * dWdr * e_ji + \
-                         self.mu * (part.m * ((1 / nei.rho ** 2) + (1 / part.rho ** 2)) * dWdr * (v_ji / dist))
-                nei.D = nei.D + part.m * dWdr * np.dot(v_ji, e_ji)
+                if not np.array_equal(part.list_num, nei.list_num):  # Only if not in same bucket to avoid duplication
+                    # add corresponding force onto neigh from part
+                    nei.a = nei.a - part.m * ((nei.P / nei.rho ** 2) + (part.P / part.rho ** 2)) * dWdr * e_ji + \
+                             self.mu * (part.m * ((1 / nei.rho ** 2) + (1 / part.rho ** 2)) * dWdr * (v_ji / dist))
+                    nei.D = nei.D + part.m * dWdr * np.dot(v_ji, e_ji)
 
         else:
             # Set acceleration to 0 initially for sum
@@ -303,9 +304,8 @@ class SPH_main(object):
                 neighs_boundary = [neigh for neigh in neighs if neigh.boundary]
                 for neigh in neighs_boundary:
                     normal, dist = self.calc_normal(fluid, neigh)
-                    print("fluid boundary", fluid.x, "boundary particle x", neigh.x, "normal", normal,
-                          neigh.boundary_wall)
-                    print("dist", dist, self.dwall)
+                    #print("fluid boundary", fluid.x, "boundary particle x", neigh.x, "normal", normal, neigh.boundary_wall)
+                    #print("dist", dist, self.dwall)
                     if dist < self.dwall:
                         print("dist is smaller", dist, self.dwall)
                         if dist < min_dist:
@@ -430,7 +430,7 @@ class SPH_main(object):
             # Smooth after some time steps
             if cnt % 10 == 0:
                 smooth = True
-            self.predictor_corrector(self.particle_list, smooth=smooth)
+            self.forward_euler(self.particle_list, smooth=smooth)
             print("Time", t)
             t = t + self.dt
             # save file every n dt
