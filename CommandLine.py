@@ -1,7 +1,6 @@
 import argparse
 import sph_stub as sphClass
-import numpy as np
-import particle as particleClass
+
 
 
 parser = argparse.ArgumentParser()
@@ -10,8 +9,10 @@ parser.add_argument('t_max', help="Simulation end time", type=float)
 parser.add_argument('dx', help="Initial Particle Spacing", type=float)
 parser.add_argument('-x', '--xdomain', help="X Fluid Domain range, provide xmin xmax", nargs='+', type=int, default=[0, 20])
 parser.add_argument('-y', '--ydomain', help="Y Fluid Domain range, provide ymin ymax", nargs='+', type=int, default=[0, 10])
-parser.add_argument('-m', '--movie', help="Save to MP4, or just show?", default=False, action='store_true')
+parser.add_argument('-m', '--movie', help="Save to MP4, or just show?", default=True, action='store_true')
 parser.add_argument('-f', '--frames', help="Save data every nth frame", default=25, type=int)
+parser.add_argument('-s', '--scheme', help="Time step scheme, choose 'fe' for forward euler or 'pc' for predictor corrector",
+                    choices=['fe', 'pc'], default='fe', type=str)
 
 
 args = parser.parse_args()
@@ -27,6 +28,11 @@ max_x = [args.xdomain[1], args.ydomain[1]]  # max x , max y
 movie = args.movie
 framerate = args.frames
 
+if args.Scheme == 'fe':
+    scheme = domain.forward_euler
+else:
+    scheme = domain.predictor_corrector
+
 #######
 # ASSERT USER HAS ENTERED VALID MODEL PARAMETERS
 if t_max > 50 or dx < 0.1:
@@ -40,10 +46,16 @@ assert min_x[1] < max_x[1], "Please review your ydomain input, Currently ymin > 
 #######
 
 
-# create class instance with command line inputs
+# Initialise grid
 domain = sphClass.SPH_main()
-domain.set_values(min_x=min_x, max_x=max_x, dx=dx, t_max=t_max)
+domain.set_values(min_x=min_x, max_x=max_x)
 domain.initialise_grid()
 domain.place_points()
-domain.simulate()
+domain.allocate_to_grid()
+count = domain.simulate(domain.forward_euler)
+file = open('countnum.txt','w')
+file.write(str(count))
+file.close()
 
+if movie:
+    import animation
