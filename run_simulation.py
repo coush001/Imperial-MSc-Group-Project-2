@@ -11,7 +11,7 @@ import sph_stub as sphClass
 domain = sphClass.SPH_main()
 domain.set_values()
 domain.initialise_grid()
-domain.place_points(domain.min_x, domain.max_x)
+domain.place_points()
 domain.allocate_to_grid()
 print("Done before simulation")
 partcle, timelist = domain.simulate(10)
