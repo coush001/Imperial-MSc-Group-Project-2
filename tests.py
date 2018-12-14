@@ -7,7 +7,7 @@ domain = sphClass.SPH_main()
 domain.set_values(max_x=(10, 7), dx=0.8, t_max=1)
 domain.initialise_grid()
 domain.place_points()
-domain.simulate()
+domain.simulate(domain.forward_euler)
 
 
 def test_mass_not_zero():
