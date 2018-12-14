@@ -13,9 +13,9 @@ To get up and running with our software please follow the instillation instructi
 $pip install -r requirements.txt
 ```
 - Set the environment varible to the path. New path, add 'path\ffmpeg\bin' to it. Example:
-"""
+'''
 C:\Users\Dwyane Wade\Documents\GitHub\Project2\acse-4-project-2-arctic\ffmpeg\bin
-"""
+'''
 ## Usage
 
 There are two levels of usage we envision from users
