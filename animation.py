@@ -106,7 +106,6 @@ ax1.set_title("Pressure")
 moving_part1 = ax1.scatter(x_data[0][0], x_data[0][1])
 boundary1 = ax1.scatter(x_boundary[0][0], x_boundary[0][1])
 time_text1 = ax1.text(0.7, 0.8, '', transform=ax1.transAxes)
-plt.show()
 anim1 = animation.FuncAnimation(fig1, animate_pressure, frames=len(t_list),
                                interval=1000*t_list[0], blit=True) #  init_func=init
 
