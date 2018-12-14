@@ -27,5 +27,5 @@ def test_density_does_not_change_much():  # Check no density exceeds 1.5 * initi
 
 
 def test_particles_dont_leak():
-    assert(len(domain.particle_list) == domain.initial_particle_size))
+    assert(len(domain.particle_list) == domain.initial_particle_size)
 
