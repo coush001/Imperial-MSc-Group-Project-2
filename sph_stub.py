@@ -4,7 +4,6 @@ import particle as particleClass
 import csv
 import pickle
 from progressbar import Percentage, Bar, Timer, ETA, FileTransferSpeed, ProgressBar
-import os
 
 
 class SPH_main(object):
@@ -520,43 +519,35 @@ class SPH_main(object):
         time_array = [t]
         self.allocate_to_grid()
         cnt = 0
-        p0 = self.particle_list
-        p_list = [p0]
-        t_list = [t]
-        filename = 'datafile_2.pkl'
-        if(os.path.exists(filename)):
-            file = open(filename, 'rb')
-            file.close()
-            os.remove(filename)
-            #print ('\n Remove previous datafile')
+        filename = 'datafile_3.pkl'
         file = open(filename,'wb')
         # generate a progressbar
         widgets = ['Progress: ',Percentage(), ' ', Bar('$'),' ', Timer(),
-                       ' ', ETA(), ' ', FileTransferSpeed()]
+                       ' ', ETA(), ' ', FileTransferSpeed()] 
         pbar = ProgressBar(widgets=widgets, maxval=int(self.t_max/self.dt)+1).start()
         i = 0
         count = 0
-
+        
         while t < self.t_max:
             cnt = cnt + 1
             smooth = False
             # Smooth after some time steps
             if cnt % 10 == 0:
                 smooth = True
-            scheme(self.particle_list, smooth=smooth)
-            print("Time", t)
+            self.forward_euler(self.particle_list, smooth=smooth)
             t = t + self.dt
             # save file every n dt
             if cnt % n == 0:
                 pickle.dump(self.particle_list, file, -1)
                 pickle.dump(t, file)
                 count += 2
+                f = open('countnum.txt','w')
+                f.write(str(count))
             time_array.append(t)
             i += 1
             pbar.update( i )
+        f.close()
         pbar.finish()
-        file.close()
-        return count
 
     def load_file(self, count):
         """
@@ -567,7 +558,7 @@ class SPH_main(object):
         p_list = []
         t_list = []
         i = 0
-        filename = 'datafile_2.pkl'
+        filename = 'datafile_3.pkl'
         file = open(filename, 'rb')
         while i < count:
             if i % 2 == 0:
