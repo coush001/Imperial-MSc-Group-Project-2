@@ -14,7 +14,7 @@ domain.initialise_grid()
 domain.place_points()
 domain.allocate_to_grid()
 print("Done before simulation")
-domain.simulate(scheme=domain.forward_euler, n=1)
+domain.simulate(scheme=domain.forward_euler, n=5)
 
 print("Done simulation")
 

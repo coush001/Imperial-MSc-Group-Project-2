@@ -93,7 +93,7 @@ We import pickle to save and load files, so the user can get the .pkl format fil
 Calling for advice and help from the community, we are welcoming advice on solutions!
 
 current known bugs:
-  - Particles aggregate on the left boundary when running a small dx spacing, these particle have an ocillating attraction to the left wall and eventually become unstable and ping off crashing the simulation.
+  - Particles aggregate on the left boundary when running a small dx spacing, these particle have an ocillating attraction to the left wall and eventually become unstable and ping off crashing the simulation for small dxs(e.g. at 0.2).
 
 ## Built With
 
@@ -105,7 +105,7 @@ Please contact a team member directly if you would like to be involved with the 
 
 ## Versioning
 
-?? 
+Currently released version 1.0.0 
 
 ## Authors
 
