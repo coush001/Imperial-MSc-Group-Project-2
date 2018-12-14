@@ -44,7 +44,7 @@ class SPH_main(object):
         # Stencil scheme
         self.stencil = True
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(20, 10), dx=0.5, h_fac=1.3, t0=0.0, t_max=30, dt=0, C_CFL=0.2,
+    def set_values(self, min_x=(0.0, 0.0), max_x=(50, 25), dx=0.5, h_fac=1.3, t0=0.0, t_max=30, dt=0, C_CFL=0.2,
                    stencil=True):
         """Set simulation parameters."""
 
@@ -278,7 +278,7 @@ class SPH_main(object):
                         if q < 0.04:
                             q = 0.04
 
-                        rho_rho0 = 1.02
+                        rho_rho0 = 1.001
                         Pref = ((self.rho0*self.c0**2)/self.gamma)*(rho_rho0**self.gamma-1)  # Reference pressure
                         da = normal * (Pref/self.rho0) * ((1/q)**4 - (1/q)**2)/dist
 
