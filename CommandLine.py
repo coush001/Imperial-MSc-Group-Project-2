@@ -1,5 +1,11 @@
 import argparse
+import os
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import sph_stub as sphClass
+import matplotlib
+import numpy as np
+import sys
 
 
 
@@ -10,14 +16,22 @@ parser.add_argument('dx', help="Initial Particle Spacing", type=float)
 parser.add_argument('-x', '--xdomain', help="X Fluid Domain range, input: xmin xmax", nargs='+', type=int, default=[0, 20])
 parser.add_argument('-y', '--ydomain', help="Y Fluid Domain range, input: ymin ymax", nargs='+', type=int, default=[0, 10])
 parser.add_argument('-m', '--movie', help="Save to MP4, or just show?", default=True, action='store_true')
-parser.add_argument('-f', '--frames', help="Save data every nth frame", default=25, type=int)
+parser.add_argument('-f', '--frames', help="Save data every nth frame", default=5, type=int)
 parser.add_argument('-s', '--scheme', help="Time step scheme, choose 'fe' for forward euler or 'pc' for predictor corrector",
                     choices=['fe', 'pc'], default='fe', type=str)
 
 
 args = parser.parse_args()
 
-print(args)
+print('\n \nYou are running the simulation with the following parameters: \n', args)
+text = input(" \n Do you wish to procede? (y/n) \n")
+
+while text not in ['y', 'yes', 'Y', 'n', 'no', 'N', 'No']:
+    print('input not recognised, please try again')
+    text = input("\n Do you wish to procede? (y/n) \n")
+
+if text in ['n', 'no', 'N', 'No']:
+    sys.exit()
 
 ########
 # Convert args to easy read variables
@@ -50,9 +64,9 @@ domain.place_points()
 domain.allocate_to_grid()
 
 if args.scheme == 'fe':
-    count = domain.simulate(domain.forward_euler)
+    count = domain.simulate(domain.forward_euler, n=framerate)
 else:
-    count = domain.simulate(domain.predictor_corrector)
+    count = domain.simulate(domain.predictor_corrector, n=framerate)
 
 file = open('countnum.txt','w')
 file.write(str(count))
@@ -87,8 +101,8 @@ if movie:
 
     fig = plt.figure(figsize=(10, 5))
     ax1 = fig.add_subplot(111)
-    ax1.set_xlim(-2, 12)
-    ax1.set_ylim(-2, 9)
+    ax1.set_xlim(-2, args.xdomain[1]+2)
+    ax1.set_ylim(-2, args.ydomain[1]+2)
     # ax1.scatter(x_data[0], y_data[0], 'b.', )
     moving_part = ax1.scatter(x_data[0][0], x_data[0][1])
     # ax1.scatter(x_boundary[0], y_boundary[0],)
