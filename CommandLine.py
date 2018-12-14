@@ -7,8 +7,7 @@ import matplotlib
 import numpy as np
 import sys
 
-
-
+# Process arguments
 parser = argparse.ArgumentParser()
 
 parser.add_argument('t_max', help="Simulation end time", type=float)
@@ -23,6 +22,9 @@ parser.add_argument('-s', '--scheme', help="Time step scheme, choose 'fe' for fo
 
 args = parser.parse_args()
 
+######
+
+# Check user has expected sim params
 print('\n \nYou are running the simulation with the following parameters: \n', args)
 text = input(" \n Do you wish to procede? (y/n) \n")
 
@@ -72,7 +74,7 @@ file = open('countnum.txt','w')
 file.write(str(count))
 file.close()
 
-if movie:
+if movie: # Create movie
     f = open('countnum.txt', 'r')
     count = int(f.read())
     f.close()
