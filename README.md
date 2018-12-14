@@ -5,57 +5,95 @@ This project is a basic SPH simulator. Written in python 3. The package has many
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+To get up and running with our software please follow the instillation instructions:
 
-### Prerequisites
-
-What things you need to install the software and how to install them
-
+- Dowload / Clone the repository onto your computer
+- Install the required python package dependancies with the following command:
 ```
-Give examples
+$pip install -r requirements.txt
 ```
 
-### Installing
+## Usage
 
-A step by step series of examples that tell you how to get a development env running
+There are two levels of usage we envision from users
 
-Say what the step will be
+1. The developer user
+Someone who has experience with python and the field of SPH who will be able to take our code and build on top of it. For these people we encourage reading through the code and understanding how it works but to get you started the following lines could be used in a python script to initialise and run your first simulation:
+```
+import sph_stub as sphClass
+
+domain = sphClass.SPH_main() # Creating an instance of the class
+
+# Set parameters for the simulation
+domain.set_values(min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=3, dt=0, C_CFL=0.2, stencil=True)) 
+
+# Set up grid initialisation
+domain.initialise_grid()
+
+# Manually place points in the domain, currently set as the classical dam break experiment
+domain.place_points()
+
+# Place particles in appropriote bucket
+domain.allocate_to_grid()
+
+# This is the function that will run the simulation for you
+domain.simulate(scheme=domain.forward_euler, n=10)
+```
+2. User only
+For people without knowledge of either python or smoothed particle hydrodynamics we have constructed a very simple to use command line programme conveniently named 'CommandLine.py' . Help docs for this programme can be found by running the following:
 
 ```
-Give the example
+$ python CommandLine.py -h
+
+
+usage: CommandLine.py [-h] [-x XDOMAIN [XDOMAIN ...]]
+                      [-y YDOMAIN [YDOMAIN ...]] [-m] [-f FRAMES] [-s {fe,pc}]
+                      t_max dx
+
+positional arguments:
+  t_max                 Simulation end time
+  dx                    Initial Particle Spacing
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -x XDOMAIN [XDOMAIN ...], --xdomain XDOMAIN [XDOMAIN ...]
+                        X Fluid Domain range, input: xmin xmax
+  -y YDOMAIN [YDOMAIN ...], --ydomain YDOMAIN [YDOMAIN ...]
+                        Y Fluid Domain range, input: ymin ymax
+  -m, --movie           Save to MP4, or just show?
+  -f FRAMES, --frames FRAMES
+                        Save data every nth frame
+  -s {fe,pc}, --scheme {fe,pc}
+                        Time step scheme, choose 'fe' for forward euler or
+                        'pc' for predictor corrector
+```
+#### Postional arguments: 
+  - t_max ( Simulation length )
+  - dx ( Initial partical spacing )
+#### Optional arguments: 
+  - -x xdomain (range of x) example= '-x 0 20'
+  - -y ydomain (range of y) example= '-y 0 20'
+  - -m movie (store movie flag) example '-m'
+  - -f frames (frequency to store frames to animation) example= '-f'
+  - -s scheme (time stepping scheme, options fe or pc for forward euler or predictor corrector) example= '-s fe'
+  
+An example usage of this would be:
+```
+$ python CommandLine.py 30 0.2 -x 0 20 -y 0 10 -m -f 10 -s pc
 ```
 
-And repeat
+## Outputs:
 
-```
-until finished
-```
 
-End with an example of getting some data out of the system or using it for a little demo
+Explain what output files the user can expect from using the programme, what format is the csv in etc...
 
-## Running the tests
+How would a user change what out put they get
 
-Explain how to run the automated tests for this system
+## Current bugs!:
+Calling for advice and help from the community, we are welcoming advice on solutions!
 
-### Break down into end to end tests
-
-Explain what these tests test and why
-
-```
-Give an example
-```
-
-### And coding style tests
-
-Explain what these tests test and why
-
-```
-Give an example
-```
-
-## Deployment
-
-Add additional notes about how to deploy this on a live system
+current known bugs:
+  - Particles aggregate on the left boundary when running a small dx spacing, these particle have an ocillating attraction to the left wall and eventually become unstable and ping off crashing the simulation.
 
 ## Built With
 
