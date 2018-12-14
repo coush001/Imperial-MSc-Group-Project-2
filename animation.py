@@ -57,13 +57,17 @@ def get_color(data_type, i):
     color = []
     colorbound = []
     for j in range(len(pre)):
-        color.append([pre[j], 0.6, 1-pre[j]])
+        color.append([0.8*pre[j], 0.5+0.1*pre[j], 1-0.8*pre[j]])
     for j in range(len(x_boundary[i])):
         colorbound.append([0, 0, 0])
     return np.array(color), np.array(colorbound)
 
 
 def animate_pressure(i):
+    """
+    animation function for running pressure-color simulation
+    i is automatically given
+    """
     color, colorbound = get_color(pressure, i) # pressure can be change to velocity, rho ,acceleration
     moving_part1.set_color(color)
     moving_part1.set_offsets(x_data[i])
@@ -73,6 +77,10 @@ def animate_pressure(i):
     return moving_part1, time_text1
 
 def animate_velocity(i):
+    """
+    animation function for running velocity-color simulation
+    i is automatically given
+    """
     color, colorbound = get_color(velocity, i) # pressure can be change to velocity, rho ,acceleration
     moving_part2.set_color(color)
     moving_part2.set_offsets(x_data[i])
@@ -82,6 +90,10 @@ def animate_velocity(i):
     return moving_part2, time_text2
 
 def animate_rho(i):
+    """
+    animation function for running rho-color simulation
+    i is automatically given
+    """
     color, colorbound = get_color(rho, i) # pressure can be change to velocity, rho ,acceleration
     moving_part3.set_color(color)
     moving_part3.set_offsets(x_data[i])
@@ -103,17 +115,17 @@ ax1 = plt.subplot(111)
 ax1.set_xlim(-2, 22)
 ax1.set_ylim(-2, 12)
 ax1.set_title("Pressure")
-moving_part1 = ax1.scatter(x_data[0][0], x_data[0][1])
-boundary1 = ax1.scatter(x_boundary[0][0], x_boundary[0][1])
-time_text1 = ax1.text(0.7, 0.8, '', transform=ax1.transAxes)
+moving_part1 = ax1.scatter(x_data[0][0], x_data[0][1], s = 200)
+boundary1 = ax1.scatter(x_boundary[0][0], x_boundary[0][1], s = 200)
+time_text1 = ax1.text(0.7, 0.75, '', transform=ax1.transAxes)
+
 anim1 = animation.FuncAnimation(fig1, animate_pressure, frames=len(t_list),
                                interval=1000*t_list[0], blit=True) #  init_func=init
 
 ffmpegpath = os.path.abspath("./ffmpeg/bin/ffmpeg.exe")
 matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
-writer = animation.FFMpegWriter(fps = 15)
+writer = animation.FFMpegWriter(fps = 38)
 anim1.save("Pressure_video.mp4",writer = writer)
-
 # animate velocity relate animation
 fig2 = plt.figure(figsize=(12, 6))
 ax2 = plt.subplot(111)
@@ -128,7 +140,7 @@ anim2 = animation.FuncAnimation(fig2, animate_velocity, frames=len(t_list),
                                interval=1000*t_list[0], blit=True) #  init_func=init
 ffmpegpath = os.path.abspath("./ffmpeg/bin/ffmpeg.exe")
 matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
-writer = animation.FFMpegWriter(fps = 15)
+writer = animation.FFMpegWriter(fps = 38)
 anim2.save("Velocity_video.mp4",writer = writer)
 
 # animate rho relate animation
@@ -144,5 +156,5 @@ anim = animation.FuncAnimation(fig3, animate_rho, frames=len(t_list),
                                interval=1000*t_list[0], blit=True) #  init_func=init
 ffmpegpath = os.path.abspath("./ffmpeg/bin/ffmpeg.exe")
 matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
-writer = animation.FFMpegWriter(fps = 15)
+writer = animation.FFMpegWriter(fps = 38)
 anim.save("Rho_video.mp4",writer = writer)
