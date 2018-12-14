@@ -38,10 +38,10 @@ for i in p_list:
 print("get data done")
 
 
-fig = plt.figure(figsize=(10, 5))
+fig = plt.figure(figsize=(15, 10))
 ax1 = fig.add_subplot(111)
-ax1.set_xlim(-2, 12)
-ax1.set_ylim(-2, 9)
+ax1.set_xlim(-2, 22)
+ax1.set_ylim(-2, 12)
 # ax1.scatter(x_data[0], y_data[0], 'b.', )
 moving_part = ax1.scatter(x_data[0][0], x_data[0][1])
 # ax1.scatter(x_boundary[0], y_boundary[0],)
