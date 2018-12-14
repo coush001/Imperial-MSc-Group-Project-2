@@ -535,7 +535,6 @@ class SPH_main(object):
             if cnt % 10 == 0:
                 smooth = True
             self.forward_euler(self.particle_list, smooth=smooth)
-            print('t', t)
             t = t + self.dt
             # save file every n dt
             if cnt % n == 0:
