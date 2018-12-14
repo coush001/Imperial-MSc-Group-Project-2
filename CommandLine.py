@@ -60,7 +60,7 @@ assert min_x[1] < max_x[1], "Please review your ydomain input, Currently ymin > 
 
 # Initialise grid
 domain = sphClass.SPH_main()
-domain.set_values(min_x=min_x, max_x=max_x)
+domain.set_values(min_x=min_x, max_x=max_x, t_max=t_max, dx=dx)
 domain.initialise_grid()
 domain.place_points()
 domain.allocate_to_grid()
