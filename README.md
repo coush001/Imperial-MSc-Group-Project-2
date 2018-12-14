@@ -89,6 +89,11 @@ Explain what output files the user can expect from using the programme, what for
 
 How would a user change what out put they get
 
+## Current bugs!:
+Calling for advice and help from the community, we are welcoming advice on solutions!
+
+current known bugs:
+  - Particles aggregate on the left boundary when running a small dx spacing, these particle have an ocillating attraction to the left wall and eventually become unstable and ping off crashing the simulation.
 
 ## Built With
 
