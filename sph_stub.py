@@ -47,7 +47,10 @@ class SPH_main(object):
         # Stencil scheme
         self.stencil = True
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(20, 10), dx=0.5, h_fac=1.3, t0=0.0, t_max=10, dt=0, C_CFL=0.2,
+        # Save the initial particle size
+        self.initial_particle_size = 0
+
+    def set_values(self, min_x=(0.0, 0.0), max_x=(20, 10), dx=0.2, h_fac=1.3, t0=0.0, t_max=10, dt=0, C_CFL=0.2,
                    stencil=True):
         """Set simulation parameters."""
 
@@ -117,6 +120,7 @@ class SPH_main(object):
                     particle = particleClass.Particle(self, x)
                     particle.calc_index()
                     self.particle_list.append(particle)
+        self.initial_particle_size = len(self.particle_list)
 
     def allocate_to_grid(self):
         """Allocate all the points to a grid in order to aid neighbour searching"""
@@ -484,6 +488,8 @@ class SPH_main(object):
         i = 0
         count = 0
 
+        # Measure max speed for printing results
+        max_speed = 0.0
         while t < self.t_max:
             cnt = cnt + 1
             smooth = False
@@ -491,6 +497,10 @@ class SPH_main(object):
             if cnt % 10 == 0:
                 smooth = True
             scheme(self.particle_list, smooth=smooth)
+            # Calculate max speed for printing results
+            cur_max_speed = np.amax(np.array([np.linalg.norm(part.v) for part in self.particle_list]))
+            if cur_max_speed > max_speed:
+                max_speed = cur_max_speed
             print("Time", t)
             t = t + self.dt
             # save file every n dt
@@ -503,6 +513,17 @@ class SPH_main(object):
             pbar.update( i )
         pbar.finish()
         file.close()
+        print("")
+        print("RESULTS OF SIMULATION")
+        print("==================================================")
+        # From last particle_list, find out how many particles have leaked
+        if len(self.particle_list) < self.initial_particle_size:
+            print("WARNING: You have some particle leakage")
+            print("Number of particles leaked: %d" % self.initial_particle_size)
+        elif len(self.particle_list) == self.initial_particle_size:
+            print("+ You had no particle leakage")
+        print("+ Maximum speed of particles:%2.f m/s" % max_speed)
+        print("")
         return count
 
     def load_file(self, count):
