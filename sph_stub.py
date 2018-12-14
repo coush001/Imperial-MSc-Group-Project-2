@@ -45,7 +45,7 @@ class SPH_main(object):
         # Efficient neighbour searching stencil scheme
         self.stencil = True
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(20, 10), dx=0.3, h_fac=1.3, t0=0.0, t_max=2.3, dt=0, C_CFL=0.2,
+    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=3, dt=0, C_CFL=0.2,
                    stencil=True):
         """
         Initialise the parameters for the domain and the simulation parameters
@@ -299,7 +299,7 @@ class SPH_main(object):
                     Rb = (0.11*np.abs(nei.P))/(nei.rho**2)
                     R = Ra + Rb
                 elif part.P > 0 and nei.P > 0:
-                    R = 0.1*((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2))
+                    R = 0.01*((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2))
 
                 # Calculate navier eqs for this particle to neighbour interaction + additional artificial pressure term
                 nav_acc = - nei.m * ((part.P / part.rho ** 2) + (nei.P / nei.rho ** 2) + R*(self.W(dist)/self.W(self.dx))**4) * dWdr * e_ij + \
@@ -535,6 +535,7 @@ class SPH_main(object):
             if cnt % 10 == 0:
                 smooth = True
             self.forward_euler(self.particle_list, smooth=smooth)
+            print('t', t)
             t = t + self.dt
             # save file every n dt
             if cnt % n == 0:
