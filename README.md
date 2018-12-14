@@ -12,7 +12,10 @@ To get up and running with our software please follow the instillation instructi
 ```
 $pip install -r requirements.txt
 ```
-
+- Set the environment varible to the path. New path, add 'path\ffmpeg\bin' to it. Example:
+'''
+C:\Users\Dwyane Wade\Documents\GitHub\Project2\acse-4-project-2-arctic\ffmpeg\bin
+'''
 ## Usage
 
 There are two levels of usage we envision from users
@@ -84,10 +87,7 @@ $ python CommandLine.py 30 0.2 -x 0 20 -y 0 10 -m -f 10 -s pc
 
 ## Outputs:
 
-
-Explain what output files the user can expect from using the programme, what format is the csv in etc...
-
-How would a user change what out put they get
+We import pickle to save and load files, so the user can get the .pkl format files in the directory. The file save the output data used for subsequent post-processing and for animation according to the user set simulation time output interval n, which is the parameter defined in the function of simulation.
 
 ## Current bugs!:
 Calling for advice and help from the community, we are welcoming advice on solutions!
