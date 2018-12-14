@@ -45,6 +45,9 @@ class SPH_main(object):
         # Efficient neighbour searching stencil scheme
         self.stencil = True
 
+        # Save the initial particle size
+        self.initial_particle_size = 0
+
     def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=1, dt=0, C_CFL=0.2,
                    stencil=True):
         """
@@ -136,6 +139,7 @@ class SPH_main(object):
                     particle = particleClass.Particle(self, x)
                     particle.calc_index()
                     self.particle_list.append(particle)
+        self.initial_particle_size = len(self.particle_list)
 
     def allocate_to_grid(self):
         """Allocate all the points to a grid in order to aid neighbour searching"""
@@ -523,19 +527,25 @@ class SPH_main(object):
         file = open(filename,'wb')
         # generate a progressbar
         widgets = ['Progress: ',Percentage(), ' ', Bar('$'),' ', Timer(),
-                       ' ', ETA(), ' ', FileTransferSpeed()] 
+                       ' ', ETA(), ' ', FileTransferSpeed()]
         pbar = ProgressBar(widgets=widgets, maxval=int(self.t_max/self.dt)+1).start()
         i = 0
         count = 0
-        
+
+        # Measure max speed for printing results
+        max_speed = 0.0
         while t < self.t_max:
             cnt = cnt + 1
             smooth = False
             # Smooth after some time steps
             if cnt % 10 == 0:
                 smooth = True
-            self.forward_euler(self.particle_list, smooth=smooth)
-            print('t', t)
+            scheme(self.particle_list, smooth=smooth)
+            # Calculate max speed for printing results
+            cur_max_speed = np.amax(np.array([np.linalg.norm(part.v) for part in self.particle_list]))
+            if cur_max_speed > max_speed:
+                max_speed = cur_max_speed
+            print('Time', t)
             t = t + self.dt
             # save file every n dt
             if cnt % n == 0:
@@ -546,9 +556,20 @@ class SPH_main(object):
                 f.write(str(count))
             time_array.append(t)
             i += 1
-            pbar.update( i )
-        f.close()
+            pbar.update(i)
+        file.close()
         pbar.finish()
+        print("")
+        print("RESULTS OF SIMULATION")
+        print("==================================================")
+        # From last particle_list, find out how many particles have leaked
+        if len(self.particle_list) < self.initial_particle_size:
+            print("WARNING: You have some particle leakage")
+            print("Number of particles leaked: %d" % self.initial_particle_size)
+        elif len(self.particle_list) == self.initial_particle_size:
+            print("+ You had no particle leakage")
+        print("+ Maximum speed of particles:%2.f m/s" % max_speed)
+        print("")
 
     def load_file(self, count):
         """
