@@ -70,9 +70,6 @@ if args.scheme == 'fe':
 else:
     count = domain.simulate(domain.predictor_corrector, n=framerate)
 
-file = open('countnum.txt','w')
-file.write(str(count))
-file.close()
 
 if movie: # Create movie
     f = open('countnum.txt', 'r')
@@ -135,8 +132,8 @@ if movie: # Create movie
 
     plt.show()
 
-    ffmpegpath = os.path.abspath("./ffmpeg/bin/ffmpeg.exe")
-    matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
-    writer = animation.FFMpegWriter(fps=15)
-    anim.save("video.mp4", writer=writer)
-    print("animation output done")
+    # ffmpegpath = os.path.abspath("./ffmpeg/bin/ffmpeg.exe")
+    # matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
+    # writer = animation.FFMpegWriter(fps=15)
+    # anim.save("video.mp4", writer=writer)
+    # print("animation output done")

@@ -122,9 +122,10 @@ time_text1 = ax1.text(0.7, 0.75, '', transform=ax1.transAxes)
 anim1 = animation.FuncAnimation(fig1, animate_pressure, frames=len(t_list),
                                interval=1000*t_list[0], blit=True) #  init_func=init
 
-#plt.show()
+plt.show()
 
 
+"""
 ffmpegpath = os.path.abspath("./ffmpeg/bin/ffmpeg.exe")
 matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
 writer = animation.FFMpegWriter(fps = 38)
@@ -140,7 +141,11 @@ moving_part2 = ax2.scatter(x_data[0][0], x_data[0][1])
 boundary2 = ax2.scatter(x_boundary[0][0], x_boundary[0][1])
 time_text2 = ax2.text(0.7, 0.8, '', transform=ax2.transAxes)
 anim2 = animation.FuncAnimation(fig2, animate_velocity, frames=len(t_list),
-                               interval=1000*t_list[0], blit=True) #  init_func=init
+    
+    
+                           interval=1000*t_list[0], blit=True) #  init_func=init
+
+
 ffmpegpath = os.path.abspath("./ffmpeg/bin/ffmpeg.exe")
 matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
 writer = animation.FFMpegWriter(fps = 38)
@@ -161,3 +166,4 @@ ffmpegpath = os.path.abspath("./ffmpeg/bin/ffmpeg.exe")
 matplotlib.rcParams["animation.ffmpeg_path"] = ffmpegpath
 writer = animation.FFMpegWriter(fps = 38)
 anim.save("Rho_video.mp4",writer = writer)
+"""
