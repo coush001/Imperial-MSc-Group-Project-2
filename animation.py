@@ -96,7 +96,7 @@ p_list, t_list = domain.load_file(get_countnum())
 x_data, x_boundary, pressure, velocity, rho = get_data(p_list)
 
 
-fig1 = plt.figure(figsize=(6, 6))
+fig1 = plt.figure(figsize=(12, 6))
 ax1 = plt.subplot(111)
 
 # animate pressure relate animation
@@ -116,7 +116,7 @@ writer = animation.FFMpegWriter(fps = 15)
 anim1.save("Pressure_video.mp4",writer = writer)
 
 # animate velocity relate animation
-fig2 = plt.figure(figsize=(6, 6))
+fig2 = plt.figure(figsize=(12, 6))
 ax2 = plt.subplot(111)
 
 ax2.set_xlim(-2, 22)
@@ -133,7 +133,7 @@ writer = animation.FFMpegWriter(fps = 15)
 anim2.save("Velocity_video.mp4",writer = writer)
 
 # animate rho relate animation
-fig3 = plt.figure(figsize=(6, 6))
+fig3 = plt.figure(figsize=(12, 6))
 ax3 = plt.subplot(111)
 ax3.set_title("rho")
 ax3.set_xlim(-2, 22)
