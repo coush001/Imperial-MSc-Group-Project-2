@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Dec 12 16:54:40 2018
-
-@author: Dwyane Wade
-"""
 import os
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
