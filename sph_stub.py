@@ -48,7 +48,7 @@ class SPH_main(object):
         # Save the initial particle size
         self.initial_particle_size = 0
 
-    def set_values(self, min_x=(0.0, 0.0), max_x=(10, 7), dx=0.5, h_fac=1.3, t0=0.0, t_max=1, dt=0, C_CFL=0.2,
+    def set_values(self, min_x=(0.0, 0.0), max_x=(20, 10), dx=0.5, h_fac=1.3, t0=0.0, t_max=30, dt=0, C_CFL=0.2,
                    stencil=True):
         """
         Initialise the parameters for the domain and the simulation parameters
