@@ -84,10 +84,7 @@ $ python CommandLine.py 30 0.2 -x 0 20 -y 0 10 -m -f 10 -s pc
 
 ## Outputs:
 
-
-Explain what output files the user can expect from using the programme, what format is the csv in etc...
-
-How would a user change what out put they get
+We import pickle to save files, so the user can get the .pkl format files in the directory, which saves the output data used for subsequent post-processing and and for animation according to the user set simulation time output interval.
 
 ## Current bugs!:
 Calling for advice and help from the community, we are welcoming advice on solutions!
